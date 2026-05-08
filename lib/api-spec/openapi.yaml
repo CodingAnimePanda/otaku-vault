@@ -1,22 +1,22 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Media Tracker API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: media
+    description: Media tracking operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +24,236 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /media:
+    get:
+      operationId: listMedia
+      tags: [media]
+      summary: List all media entries
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [webtoon, manhwa, manga, anime]
+        - name: listType
+          in: query
+          schema:
+            type: string
+            enum: [library, to_read, avoid]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [reading, watching, completed, paused, dropped, plan_to_read]
+      responses:
+        "200":
+          description: List of media
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaItem"
+    post:
+      operationId: createMedia
+      tags: [media]
+      summary: Add a new media entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMediaBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+
+  /media/stats:
+    get:
+      operationId: getMediaStats
+      tags: [media]
+      summary: Get media statistics summary
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaStats"
+
+  /media/recommendations:
+    get:
+      operationId: getRecommendations
+      tags: [media]
+      summary: Get recommendations based on library
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [webtoon, manhwa, manga, anime]
+      responses:
+        "200":
+          description: Recommended titles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Recommendation"
+
+  /media/updates:
+    get:
+      operationId: getMediaUpdates
+      tags: [media]
+      summary: Get media with available updates
+      responses:
+        "200":
+          description: Media with updates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaItem"
+
+  /media/cover-search:
+    get:
+      operationId: searchCover
+      tags: [media]
+      summary: Search for cover image by title and category
+      parameters:
+        - name: title
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [webtoon, manhwa, manga, anime]
+      responses:
+        "200":
+          description: Cover search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CoverResult"
+
+  /media/{id}:
+    get:
+      operationId: getMedia
+      tags: [media]
+      summary: Get a single media entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Media item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+        "404":
+          description: Not found
+    put:
+      operationId: updateMedia
+      tags: [media]
+      summary: Update a media entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMediaBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteMedia
+      tags: [media]
+      summary: Delete a media entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /media/{id}/tier:
+    put:
+      operationId: updateMediaTier
+      tags: [media]
+      summary: Update the tier for a media entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTierBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+
+  /media/{id}/check-update:
+    post:
+      operationId: checkMediaUpdate
+      tags: [media]
+      summary: Check if a media entry has new chapters/episodes
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Update check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateCheckResult"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +264,244 @@ components:
       required:
         - status
 
+    MediaItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+          enum: [webtoon, manhwa, manga, anime]
+        listType:
+          type: string
+          enum: [library, to_read, avoid]
+        status:
+          type: string
+          enum: [reading, watching, completed, paused, dropped, plan_to_read]
+          nullable: true
+        coverUrl:
+          type: string
+          nullable: true
+        customCoverUrl:
+          type: string
+          nullable: true
+        tier:
+          type: string
+          enum: [S, A, B, C, D, F]
+          nullable: true
+        rating:
+          type: number
+          nullable: true
+        genres:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+          nullable: true
+        hasUpdate:
+          type: boolean
+        lastCheckedAt:
+          type: string
+          nullable: true
+        currentChapter:
+          type: string
+          nullable: true
+        totalChapters:
+          type: string
+          nullable: true
+        addedBy:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - title
+        - category
+        - listType
+        - genres
+        - hasUpdate
+        - createdAt
+        - updatedAt
+
+    CreateMediaBody:
+      type: object
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+          enum: [webtoon, manhwa, manga, anime]
+        listType:
+          type: string
+          enum: [library, to_read, avoid]
+        status:
+          type: string
+          enum: [reading, watching, completed, paused, dropped, plan_to_read]
+          nullable: true
+        coverUrl:
+          type: string
+          nullable: true
+        genres:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+          nullable: true
+        currentChapter:
+          type: string
+          nullable: true
+        addedBy:
+          type: string
+          nullable: true
+      required:
+        - title
+        - category
+        - listType
+
+    UpdateMediaBody:
+      type: object
+      properties:
+        title:
+          type: string
+        status:
+          type: string
+          enum: [reading, watching, completed, paused, dropped, plan_to_read]
+          nullable: true
+        coverUrl:
+          type: string
+          nullable: true
+        customCoverUrl:
+          type: string
+          nullable: true
+        tier:
+          type: string
+          enum: [S, A, B, C, D, F]
+          nullable: true
+        rating:
+          type: number
+          nullable: true
+        genres:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+          nullable: true
+        currentChapter:
+          type: string
+          nullable: true
+        totalChapters:
+          type: string
+          nullable: true
+        listType:
+          type: string
+          enum: [library, to_read, avoid]
+        addedBy:
+          type: string
+          nullable: true
+
+    UpdateTierBody:
+      type: object
+      properties:
+        tier:
+          type: string
+          enum: [S, A, B, C, D, F]
+          nullable: true
+      required:
+        - tier
+
+    MediaStats:
+      type: object
+      properties:
+        totalByCategory:
+          type: object
+          additionalProperties:
+            type: integer
+        completedByCategory:
+          type: object
+          additionalProperties:
+            type: integer
+        tierDistribution:
+          type: object
+          additionalProperties:
+            type: integer
+        toReadCount:
+          type: integer
+        avoidCount:
+          type: integer
+        updatesAvailable:
+          type: integer
+      required:
+        - totalByCategory
+        - completedByCategory
+        - tierDistribution
+        - toReadCount
+        - avoidCount
+        - updatesAvailable
+
+    Recommendation:
+      type: object
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+          enum: [webtoon, manhwa, manga, anime]
+        coverUrl:
+          type: string
+          nullable: true
+        genres:
+          type: array
+          items:
+            type: string
+        score:
+          type: number
+          nullable: true
+        synopsis:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+      required:
+        - title
+        - category
+        - genres
+
+    CoverResult:
+      type: object
+      properties:
+        title:
+          type: string
+        coverUrl:
+          type: string
+        source:
+          type: string
+          nullable: true
+        score:
+          type: number
+          nullable: true
+      required:
+        - title
+        - coverUrl
+
+    UpdateCheckResult:
+      type: object
+      properties:
+        hasUpdate:
+          type: boolean
+        latestChapter:
+          type: string
+          nullable: true
+        checkedAt:
+          type: string
+      required:
+        - hasUpdate
+        - checkedAt
