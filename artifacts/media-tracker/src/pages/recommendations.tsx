@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Star, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, proxyImage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const CATEGORIES = ["webtoon", "manhwa", "manga", "anime"] as const;
@@ -129,7 +129,7 @@ export default function Recommendations() {
               <div className="aspect-[2/3] rounded-xl overflow-hidden bg-muted relative">
                 {rec.coverUrl ? (
                   <img
-                    src={rec.coverUrl}
+                    src={proxyImage(rec.coverUrl) ?? ""}
                     alt={rec.title}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />

@@ -26,6 +26,7 @@ export const MediaItemListType = {
   library: "library",
   to_read: "to_read",
   avoid: "avoid",
+  bl: "bl",
 } as const;
 
 export type MediaItemStatus =
@@ -92,6 +93,7 @@ export const CreateMediaBodyListType = {
   library: "library",
   to_read: "to_read",
   avoid: "avoid",
+  bl: "bl",
 } as const;
 
 export type CreateMediaBodyStatus =
@@ -152,6 +154,7 @@ export const UpdateMediaBodyListType = {
   library: "library",
   to_read: "to_read",
   avoid: "avoid",
+  bl: "bl",
 } as const;
 
 export interface UpdateMediaBody {
@@ -257,6 +260,7 @@ export const ListMediaListType = {
   library: "library",
   to_read: "to_read",
   avoid: "avoid",
+  bl: "bl",
 } as const;
 
 export type ListMediaStatus =

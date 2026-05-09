@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skull, Trash2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, proxyImage } from "@/lib/utils";
 
 export default function Avoid() {
   const queryClient = useQueryClient();
@@ -97,7 +97,7 @@ export default function Avoid() {
                     <div className="w-14 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-muted ml-2">
                       {item.coverUrl || item.customCoverUrl ? (
                         <img
-                          src={item.customCoverUrl || item.coverUrl || ""}
+                          src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""}
                           alt={item.title}
                           className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
                         />

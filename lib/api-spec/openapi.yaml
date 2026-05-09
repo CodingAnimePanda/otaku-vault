@@ -40,7 +40,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [library, to_read, avoid]
+            enum: [library, to_read, avoid, bl]
         - name: status
           in: query
           schema:
@@ -276,7 +276,7 @@ components:
           enum: [webtoon, manhwa, manga, anime]
         listType:
           type: string
-          enum: [library, to_read, avoid]
+          enum: [library, to_read, avoid, bl]
         status:
           type: string
           enum: [reading, watching, completed, paused, dropped, plan_to_read]
@@ -339,7 +339,7 @@ components:
           enum: [webtoon, manhwa, manga, anime]
         listType:
           type: string
-          enum: [library, to_read, avoid]
+          enum: [library, to_read, avoid, bl]
         status:
           type: string
           enum: [reading, watching, completed, paused, dropped, plan_to_read]
@@ -402,7 +402,7 @@ components:
           nullable: true
         listType:
           type: string
-          enum: [library, to_read, avoid]
+          enum: [library, to_read, avoid, bl]
         addedBy:
           type: string
           nullable: true

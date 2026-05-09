@@ -6,7 +6,7 @@ import {
   getListMediaQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
+import { cn, proxyImage } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 const CATEGORIES = ["webtoon", "manhwa", "manga", "anime"] as const;
@@ -145,7 +145,7 @@ export default function TierList() {
                       <div className="w-16 h-24 rounded-md overflow-hidden bg-muted ring-1 ring-border group-hover:ring-primary/50 transition-all">
                         {item.coverUrl || item.customCoverUrl ? (
                           <img
-                            src={item.customCoverUrl || item.coverUrl || ""}
+                            src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""}
                             alt={item.title}
                             className="w-full h-full object-cover"
                           />
@@ -189,7 +189,7 @@ export default function TierList() {
                     <div className="w-16 h-24 rounded-md overflow-hidden bg-muted ring-1 ring-border group-hover:ring-primary/50 transition-all">
                       {item.coverUrl || item.customCoverUrl ? (
                         <img
-                          src={item.customCoverUrl || item.coverUrl || ""}
+                          src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""}
                           alt={item.title}
                           className="w-full h-full object-cover"
                         />

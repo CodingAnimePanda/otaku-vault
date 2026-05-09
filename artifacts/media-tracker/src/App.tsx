@@ -10,6 +10,7 @@ import Recommendations from "@/pages/recommendations";
 import ToRead from "@/pages/to-read";
 import Avoid from "@/pages/avoid";
 import Updates from "@/pages/updates";
+import BLVault from "@/pages/bl-vault";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ function Router() {
         <Route path="/to-read" component={ToRead} />
         <Route path="/avoid" component={Avoid} />
         <Route path="/updates" component={Updates} />
+        <Route path="/bl-vault" component={BLVault} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

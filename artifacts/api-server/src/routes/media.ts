@@ -410,37 +410,25 @@ router.get("/media/cover-search", async (req, res): Promise<void> => {
         }
       }
     } else {
-      // manhwa or webtoon — use MangaDex
-      const url = `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=8&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art`;
+      // manhwa or webtoon — use Jikan (stable MAL CDN URLs)
+      const url = `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(title)}&limit=8&sfw=false`;
       const resp = await fetch(url);
       if (resp.ok) {
-        const json = await resp.json() as {
-          data?: Array<{
-            id: string;
-            attributes?: { title?: Record<string, string> };
-            relationships?: Array<{
-              type: string;
-              attributes?: { fileName?: string };
-            }>;
-          }>;
-        };
+        const json = await resp.json() as { data?: Array<{
+          title: string;
+          images?: { jpg?: { image_url?: string; large_image_url?: string } };
+          score?: number;
+        }> };
         for (const item of json.data ?? []) {
-          const itemTitle =
-            item.attributes?.title?.en ??
-            Object.values(item.attributes?.title ?? {})[0] ??
-            "";
-          const coverRel = item.relationships?.find(
-            (r) => r.type === "cover_art"
-          );
-          const coverUrl = coverRel?.attributes?.fileName
-            ? `https://uploads.mangadex.org/covers/${item.id}/${coverRel.attributes.fileName}.256.jpg`
-            : null;
+          const coverUrl =
+            item.images?.jpg?.large_image_url ??
+            item.images?.jpg?.image_url;
           if (coverUrl) {
             results.push({
-              title: itemTitle,
-              coverUrl,
-              source: "MangaDex",
-              score: null,
+              title: item.title ?? "",
+              coverUrl: coverUrl.replace("myanimelist.net", "cdn.myanimelist.net"),
+              source: "MyAnimeList",
+              score: item.score ?? null,
             });
           }
         }
@@ -451,6 +439,35 @@ router.get("/media/cover-search", async (req, res): Promise<void> => {
   }
 
   res.json(results.map((r) => SearchCoverResponseItem.parse(r)));
+});
+
+// GET /media/proxy-cover — server-side image proxy to bypass hotlink protection
+router.get("/media/proxy-cover", async (req, res): Promise<void> => {
+  const url = req.query.url as string | undefined;
+  if (!url) {
+    res.status(400).json({ error: "url query param required" });
+    return;
+  }
+  try {
+    const upstream = await fetch(url, {
+      headers: {
+        Referer: "https://mangadex.org/",
+        "User-Agent": "Mozilla/5.0 (compatible; OtakuVault/1.0)",
+      },
+    });
+    if (!upstream.ok) {
+      res.status(upstream.status).send();
+      return;
+    }
+    const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400, immutable");
+    const buffer = await upstream.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    logger.warn({ err, url }, "proxy-cover failed");
+    res.status(502).send();
+  }
 });
 
 // GET /media/:id

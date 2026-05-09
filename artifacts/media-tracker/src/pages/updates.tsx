@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BellRing, RefreshCw, CheckCircle, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, proxyImage } from "@/lib/utils";
 
 export default function Updates() {
   const queryClient = useQueryClient();
@@ -121,7 +121,7 @@ export default function Updates() {
                 <div className="w-12 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
                   {item.coverUrl || item.customCoverUrl ? (
                     <img
-                      src={item.customCoverUrl || item.coverUrl || ""}
+                      src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""}
                       alt={item.title}
                       className="w-full h-full object-cover"
                     />
@@ -200,7 +200,7 @@ export default function Updates() {
                   <div className="w-12 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
                     {item.coverUrl || item.customCoverUrl ? (
                       <img
-                        src={item.customCoverUrl || item.coverUrl || ""}
+                        src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""}
                         alt={item.title}
                         className="w-full h-full object-cover"
                       />

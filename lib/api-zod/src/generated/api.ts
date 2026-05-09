@@ -19,7 +19,7 @@ export const HealthCheckResponse = zod.object({
  */
 export const ListMediaQueryParams = zod.object({
   category: zod.enum(["webtoon", "manhwa", "manga", "anime"]).optional(),
-  listType: zod.enum(["library", "to_read", "avoid"]).optional(),
+  listType: zod.enum(["library", "to_read", "avoid", "bl"]).optional(),
   status: zod
     .enum([
       "reading",
@@ -36,7 +36,7 @@ export const ListMediaResponseItem = zod.object({
   id: zod.number(),
   title: zod.string(),
   category: zod.enum(["webtoon", "manhwa", "manga", "anime"]),
-  listType: zod.enum(["library", "to_read", "avoid"]),
+  listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
       "reading",
@@ -69,7 +69,7 @@ export const ListMediaResponse = zod.array(ListMediaResponseItem);
 export const CreateMediaBody = zod.object({
   title: zod.string(),
   category: zod.enum(["webtoon", "manhwa", "manga", "anime"]),
-  listType: zod.enum(["library", "to_read", "avoid"]),
+  listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
       "reading",
@@ -126,7 +126,7 @@ export const GetMediaUpdatesResponseItem = zod.object({
   id: zod.number(),
   title: zod.string(),
   category: zod.enum(["webtoon", "manhwa", "manga", "anime"]),
-  listType: zod.enum(["library", "to_read", "avoid"]),
+  listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
       "reading",
@@ -180,7 +180,7 @@ export const GetMediaResponse = zod.object({
   id: zod.number(),
   title: zod.string(),
   category: zod.enum(["webtoon", "manhwa", "manga", "anime"]),
-  listType: zod.enum(["library", "to_read", "avoid"]),
+  listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
       "reading",
@@ -233,7 +233,7 @@ export const UpdateMediaBody = zod.object({
   notes: zod.string().nullish(),
   currentChapter: zod.string().nullish(),
   totalChapters: zod.string().nullish(),
-  listType: zod.enum(["library", "to_read", "avoid"]).optional(),
+  listType: zod.enum(["library", "to_read", "avoid", "bl"]).optional(),
   addedBy: zod.string().nullish(),
 });
 
@@ -241,7 +241,7 @@ export const UpdateMediaResponse = zod.object({
   id: zod.number(),
   title: zod.string(),
   category: zod.enum(["webtoon", "manhwa", "manga", "anime"]),
-  listType: zod.enum(["library", "to_read", "avoid"]),
+  listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
       "reading",
@@ -289,7 +289,7 @@ export const UpdateMediaTierResponse = zod.object({
   id: zod.number(),
   title: zod.string(),
   category: zod.enum(["webtoon", "manhwa", "manga", "anime"]),
-  listType: zod.enum(["library", "to_read", "avoid"]),
+  listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
       "reading",

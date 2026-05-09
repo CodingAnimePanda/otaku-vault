@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookmarkPlus, Trash2, BookOpen, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, proxyImage } from "@/lib/utils";
 
 const CATEGORY_COLORS: Record<string, string> = {
   webtoon: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -112,7 +112,7 @@ export default function ToRead() {
                     <div className="w-14 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
                       {item.coverUrl || item.customCoverUrl ? (
                         <img
-                          src={item.customCoverUrl || item.coverUrl || ""}
+                          src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""}
                           alt={item.title}
                           className="w-full h-full object-cover"
                         />
