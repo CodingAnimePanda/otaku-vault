@@ -35,12 +35,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Check, Image, Loader2 } from "lucide-react";
+import { Search, Check, Loader2, ExternalLink, Link } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CATEGORIES = ["webtoon", "manhwa", "manga", "anime"] as const;
 const LIST_TYPES = ["library", "to_read", "avoid", "bl"] as const;
 const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
+
+const READING_SITES = [
+  { label: "Webtoon",   url: "https://www.webtoons.com",  color: "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:border-blue-400/50",   emoji: "📱" },
+  { label: "MangaFire", url: "https://mangafire.to",      color: "bg-orange-500/10 text-orange-400 border-orange-500/20 hover:border-orange-400/50", emoji: "🔥" },
+  { label: "VyManga",   url: "https://vymanga.com",       color: "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-400/50", emoji: "📚" },
+];
 
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -51,6 +57,7 @@ const schema = z.object({
   addedBy: z.string().optional(),
   currentChapter: z.string().optional(),
   customCoverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  readingUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -78,11 +85,13 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
       addedBy: "",
       currentChapter: "",
       customCoverUrl: "",
+      readingUrl: "",
     },
   });
 
   const watchedTitle = form.watch("title");
   const watchedCategory = form.watch("category");
+  const watchedReadingUrl = form.watch("readingUrl");
 
   const searchParams = coverSearch
     ? { title: coverSearch.title, category: coverSearch.category as typeof CATEGORIES[number] }
@@ -129,7 +138,8 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
           notes: values.notes || null,
           addedBy: values.addedBy || null,
           currentChapter: values.currentChapter || null,
-        },
+          readingUrl: values.readingUrl || null,
+        } as any,
       },
       {
         onSuccess: () => {
@@ -166,11 +176,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                   <FormItem className="col-span-2">
                     <FormLabel>Title</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="e.g. Solo Leveling"
-                        {...field}
-                        data-testid="input-title"
-                      />
+                      <Input placeholder="e.g. Solo Leveling" {...field} data-testid="input-title" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -185,9 +191,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                     <FormLabel>Category</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid="select-category">
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger data-testid="select-category"><SelectValue /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {CATEGORIES.map((c) => (
@@ -208,9 +212,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                     <FormLabel>Add to</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid="select-list-type">
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger data-testid="select-list-type"><SelectValue /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="library">Library</SelectItem>
@@ -256,9 +258,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                   name="addedBy"
                   render={({ field }) => (
                     <FormItem className="col-span-2">
-                      <FormLabel>
-                        {listType === "avoid" ? "Warned by" : "Recommended by"}
-                      </FormLabel>
+                      <FormLabel>{listType === "avoid" ? "Warned by" : "Recommended by"}</FormLabel>
                       <FormControl>
                         <Input placeholder="Friend's name" {...field} data-testid="input-added-by" />
                       </FormControl>
@@ -285,7 +285,61 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
               )}
             </div>
 
-            {/* Cover search */}
+            {/* ── Reading Link ── */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Link className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-sm font-medium">Reading Link</p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {READING_SITES.map((site) => {
+                  const isActive = watchedReadingUrl?.startsWith(site.url);
+                  return (
+                    <button
+                      key={site.label}
+                      type="button"
+                      onClick={() => form.setValue("readingUrl", site.url)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                        isActive ? site.color + " ring-1 ring-current" : site.color
+                      )}
+                    >
+                      <span>{site.emoji}</span>
+                      {site.label}
+                      {isActive && <Check className="w-3 h-3 ml-0.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <FormField
+                control={form.control}
+                name="readingUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <div className="relative">
+                        <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                        <Input
+                          placeholder="https://... or paste a direct chapter link"
+                          {...field}
+                          className="pl-9 text-xs"
+                          data-testid="input-reading-url"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {watchedReadingUrl && (
+                <a href={watchedReadingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+                  <ExternalLink className="w-3 h-3" />
+                  Test link
+                </a>
+              )}
+            </div>
+
+            {/* ── Cover search ── */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium">Cover Image</p>
@@ -298,11 +352,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                   disabled={!watchedTitle || coverFetching}
                   data-testid="button-search-cover"
                 >
-                  {coverFetching ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Search className="w-3.5 h-3.5" />
-                  )}
+                  {coverFetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
                   Search Covers
                 </Button>
               </div>
@@ -317,16 +367,10 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                       data-testid={`cover-option-${idx}`}
                       className={cn(
                         "relative w-16 h-24 rounded-lg overflow-hidden ring-2 transition-all",
-                        selectedCover === result.coverUrl
-                          ? "ring-primary"
-                          : "ring-transparent hover:ring-border"
+                        selectedCover === result.coverUrl ? "ring-primary" : "ring-transparent hover:ring-border"
                       )}
                     >
-                      <img
-                        src={result.coverUrl}
-                        alt={result.title}
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={result.coverUrl} alt={result.title} className="w-full h-full object-cover" />
                       {selectedCover === result.coverUrl && (
                         <div className="absolute inset-0 bg-primary/30 flex items-center justify-center">
                           <Check className="w-5 h-5 text-white" />
@@ -348,12 +392,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                   <FormItem>
                     <FormLabel className="text-xs text-muted-foreground">Or paste a custom cover URL</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="https://..."
-                        {...field}
-                        data-testid="input-custom-cover"
-                        className="text-xs"
-                      />
+                      <Input placeholder="https://..." {...field} data-testid="input-custom-cover" className="text-xs" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -362,11 +401,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
 
               {(selectedCover || form.watch("customCoverUrl")) && (
                 <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
-                  <img
-                    src={selectedCover || form.watch("customCoverUrl") || ""}
-                    alt="Selected cover"
-                    className="w-10 h-14 object-cover rounded-md"
-                  />
+                  <img src={selectedCover || form.watch("customCoverUrl") || ""} alt="Selected cover" className="w-10 h-14 object-cover rounded-md" />
                   <p className="text-xs text-muted-foreground">Cover selected</p>
                 </div>
               )}
@@ -379,13 +414,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                 <FormItem>
                   <FormLabel>Notes (optional)</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Any notes about this title..."
-                      className="resize-none text-sm"
-                      rows={2}
-                      {...field}
-                      data-testid="textarea-notes"
-                    />
+                    <Textarea placeholder="Any notes about this title..." className="resize-none text-sm" rows={2} {...field} data-testid="textarea-notes" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -393,17 +422,9 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
             />
 
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createMedia.isPending}
-                data-testid="button-submit"
-              >
-                {createMedia.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : null}
+              <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">Cancel</Button>
+              <Button type="submit" disabled={createMedia.isPending} data-testid="button-submit">
+                {createMedia.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Add Title
               </Button>
             </div>

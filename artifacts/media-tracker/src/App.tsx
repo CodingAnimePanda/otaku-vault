@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+// artifacts/media-tracker/src/App.tsx
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,13 +9,33 @@ import Dashboard from "@/pages/dashboard";
 import TierList from "@/pages/tier-list";
 import Recommendations from "@/pages/recommendations";
 import ToRead from "@/pages/to-read";
+import ToWatch from "@/pages/to-watch";
 import Avoid from "@/pages/avoid";
 import Updates from "@/pages/updates";
 import BLVault from "@/pages/bl-vault";
+import NormiePage from "@/pages/normie";
+import MomentsPage from "@/pages/moments";
+import QuotesPage from "@/pages/quotes";
 
 const queryClient = new QueryClient();
 
 function Router() {
+  const [location] = useLocation();
+
+  // Normie pages get their own layout
+  const isNormiePage = location.startsWith("/normie");
+
+  if (isNormiePage) {
+    return (
+      <Switch>
+        <Route path="/normie" component={NormiePage} />
+        <Route path="/normie/tierlist/:type" component={NormiePage} />
+        <Route path="/normie/recommended" component={NormiePage} />
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
+
   return (
     <Layout>
       <Switch>
@@ -22,9 +43,12 @@ function Router() {
         <Route path="/tierlist/:category" component={TierList} />
         <Route path="/recommended" component={Recommendations} />
         <Route path="/to-read" component={ToRead} />
+        <Route path="/to-watch" component={ToWatch} />
         <Route path="/avoid" component={Avoid} />
         <Route path="/updates" component={Updates} />
         <Route path="/bl-vault" component={BLVault} />
+        <Route path="/moments" component={MomentsPage} />
+        <Route path="/quotes" component={QuotesPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

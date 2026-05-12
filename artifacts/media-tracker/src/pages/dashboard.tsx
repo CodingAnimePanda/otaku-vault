@@ -1,12 +1,26 @@
+// artifacts/media-tracker/src/pages/dashboard.tsx
 import React, { useState, useMemo } from "react";
 import { useLocation } from "wouter";
-import { useGetMediaStats, useListMedia } from "@workspace/api-client-react";
+import {
+  useGetMediaStats,
+  useListMedia,
+  useUpdateMedia,
+  useDeleteMedia,
+  getListMediaQueryKey,
+  getGetMediaStatsQueryKey,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Plus, BookOpen, Tv, Sparkles, PlayCircle, Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Plus, BookOpen, Tv, Sparkles, PlayCircle, Clock,
+  Search, ExternalLink, Pencil, XCircle, AlertTriangle,
+} from "lucide-react";
 import { AddMediaDialog } from "@/components/add-media-dialog";
+import { EditMediaDialog } from "@/components/edit-media-dialog";
 import { cn, proxyImage } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   webtoon: <BookOpen className="w-5 h-5" />,
@@ -23,12 +37,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  reading: "Reading",
-  watching: "Watching",
-  completed: "Completed",
-  paused: "Paused",
-  dropped: "Dropped",
-  plan_to_read: "Plan to read",
+  reading: "Reading", watching: "Watching", completed: "Completed",
+  paused: "Paused", dropped: "Dropped", plan_to_read: "Plan to read",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -40,18 +50,31 @@ const STATUS_COLORS: Record<string, string> = {
   plan_to_read: "bg-muted text-muted-foreground",
 };
 
+function getSiteLabel(url: string | null | undefined): string {
+  if (!url) return "Read Now";
+  if (url.includes("webtoons.com")) return "Webtoon";
+  if (url.includes("mangafire")) return "MangaFire";
+  if (url.includes("vymanga")) return "VyManga";
+  try { return new URL(url).hostname.replace("www.", ""); } catch { return "Read Now"; }
+}
+
 export default function Dashboard() {
   const [addOpen, setAddOpen] = useState(false);
+  const [editItem, setEditItem] = useState<any | null>(null);
   const [, setLocation] = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const { data: stats } = useGetMediaStats();
   const { data: media, isLoading: mediaLoading } = useListMedia({ listType: "library" });
+  const updateMedia = useUpdateMedia();
 
-  const totalItems = Object.values(stats?.totalByCategory ?? {}).reduce((a, b) => a + b, 0);
+  const mediaArray = Array.isArray(media) ? media : [];
 
-  // Continue reading: paused first, then reading/watching, sorted by updatedAt DESC
   const continueItems = useMemo(() => {
-    if (!media) return [];
-    return media
+    if (!mediaArray.length) return [];
+    return mediaArray
       .filter((m) => m.status === "paused" || m.status === "reading" || m.status === "watching")
       .sort((a, b) => {
         const tierA = a.status === "paused" ? 0 : 1;
@@ -60,10 +83,41 @@ export default function Dashboard() {
         return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
       })
       .slice(0, 6);
-  }, [media]);
+  }, [mediaArray]);
+
+  const filteredMedia = useMemo(() => {
+    if (!searchQuery.trim()) return mediaArray;
+    const q = searchQuery.toLowerCase();
+    return mediaArray.filter((m) =>
+      m.title.toLowerCase().includes(q) ||
+      m.category.toLowerCase().includes(q) ||
+      (m.status ?? "").toLowerCase().includes(q)
+    );
+  }, [mediaArray, searchQuery]);
 
   const featured = continueItems[0];
   const restContinue = continueItems.slice(1);
+
+  const handleDrop = (id: number, title: string) => {
+    updateMedia.mutate({ id, data: { status: "dropped" } as any }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
+        toast({ title: "Dropped", description: `${title} marked as dropped.` });
+      },
+    });
+  };
+
+  const handleMoveToAvoid = (id: number, title: string) => {
+    updateMedia.mutate({ id, data: { listType: "avoid" } as any }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetMediaStatsQueryKey() });
+        toast({ title: "Moved to Avoid", description: `${title} added to your avoid list.` });
+      },
+    });
+  };
+
+  const totalItems = Object.values(stats?.totalByCategory ?? {}).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-8">
@@ -72,18 +126,11 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-display font-bold tracking-tight">Your Library</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            {totalItems > 0
-              ? `${totalItems} titles tracked across all categories`
-              : "A collection of your tracked media"}
+            {totalItems > 0 ? `${totalItems} titles tracked across all categories` : "A collection of your tracked media"}
           </p>
         </div>
-        <Button
-          onClick={() => setAddOpen(true)}
-          className="gap-2 shadow-lg"
-          data-testid="button-add-media"
-        >
-          <Plus className="w-4 h-4" />
-          Add Media
+        <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-lg" data-testid="button-add-media">
+          <Plus className="w-4 h-4" /> Add Media
         </Button>
       </div>
 
@@ -91,23 +138,18 @@ export default function Dashboard() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {(["webtoon", "manhwa", "manga", "anime"] as const).map((cat) => {
-            const total = stats.totalByCategory[cat] ?? 0;
-            const completed = stats.completedByCategory[cat] ?? 0;
+            const total = stats?.totalByCategory?.[cat] ?? 0;
+            const completed = stats?.completedByCategory?.[cat] ?? 0;
             return (
-              <button
-                key={cat}
-                data-testid={`stat-card-${cat}`}
+              <button key={cat} data-testid={`stat-card-${cat}`}
                 onClick={() => setLocation(`/tierlist/${cat}`)}
-                className="text-left p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all group"
-              >
+                className="text-left p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all group">
                 <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-3", CATEGORY_COLORS[cat])}>
                   {CATEGORY_ICONS[cat]}
                 </div>
                 <p className="text-xs text-muted-foreground capitalize font-medium mb-0.5">{cat}</p>
                 <p className="text-3xl font-display font-bold">{total}</p>
-                {completed > 0 && (
-                  <p className="text-[10px] text-muted-foreground mt-1">{completed} completed</p>
-                )}
+                {completed > 0 && <p className="text-[10px] text-muted-foreground mt-1">{completed} completed</p>}
               </button>
             );
           })}
@@ -118,53 +160,40 @@ export default function Dashboard() {
       {stats && (
         <div className="flex gap-3 flex-wrap">
           {stats.updatesAvailable > 0 && (
-            <button
-              onClick={() => setLocation("/updates")}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-green-400 hover:bg-green-500/15 transition-colors"
-            >
+            <button onClick={() => setLocation("/updates")}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-green-400 hover:bg-green-500/15 transition-colors">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               {stats.updatesAvailable} update{stats.updatesAvailable !== 1 ? "s" : ""} available
             </button>
           )}
           {stats.toReadCount > 0 && (
-            <button
-              onClick={() => setLocation("/to-read")}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-blue-400 hover:bg-blue-500/15 transition-colors"
-            >
+            <button onClick={() => setLocation("/to-read")}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-blue-400 hover:bg-blue-500/15 transition-colors">
               {stats.toReadCount} in to-read list
             </button>
           )}
           {stats.avoidCount > 0 && (
-            <button
-              onClick={() => setLocation("/avoid")}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive hover:bg-destructive/15 transition-colors"
-            >
+            <button onClick={() => setLocation("/avoid")}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive hover:bg-destructive/15 transition-colors">
               {stats.avoidCount} to avoid
             </button>
           )}
         </div>
       )}
 
-      {/* ── Continue Reading ── */}
+      {/* Continue Reading */}
       {continueItems.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-4">
             <PlayCircle className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-display font-semibold">Continue Reading</h2>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Featured card */}
             {featured && (
               <div className="lg:col-span-1 flex gap-4 p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="relative w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden shadow-lg ring-1 ring-primary/20">
                   {featured.coverUrl || featured.customCoverUrl ? (
-                    <img
-                      src={proxyImage(featured.customCoverUrl || featured.coverUrl) ?? ""}
-                      alt={featured.title}
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={proxyImage(featured.customCoverUrl || featured.coverUrl) ?? ""} alt={featured.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-primary/10 flex items-center justify-center">
                       <BookOpen className="w-8 h-8 text-primary/40" />
@@ -179,54 +208,57 @@ export default function Dashboard() {
                       </span>
                       <span className="text-[10px] text-muted-foreground capitalize">{featured.category}</span>
                     </div>
-                    <h3 className="font-display font-semibold text-base leading-tight line-clamp-2 mb-1">
-                      {featured.title}
-                    </h3>
+                    <h3 className="font-display font-semibold text-base leading-tight line-clamp-2 mb-1">{featured.title}</h3>
                     {featured.currentChapter && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {featured.currentChapter}
+                        <Clock className="w-3 h-3" />{featured.currentChapter}
                       </p>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    className="mt-3 gap-1.5 h-8 text-xs w-full"
-                    onClick={() => {}}
-                  >
-                    <PlayCircle className="w-3.5 h-3.5" />
-                    {featured.status === "paused" ? "Pick Back Up" : "Continue"}
-                  </Button>
+                  <div className="flex gap-2 mt-3">
+                    {(featured as any).readingUrl ? (
+                      <a href={(featured as any).readingUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        {featured.status === "paused" ? "Pick Back Up" : "Continue"}
+                      </a>
+                    ) : (
+                      <Button size="sm" className="flex-1 gap-1.5 h-8 text-xs" onClick={() => {}}>
+                        <PlayCircle className="w-3.5 h-3.5" />
+                        {featured.status === "paused" ? "Pick Back Up" : "Continue"}
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => setEditItem(featured)}>
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
-
-            {/* Smaller cards */}
             {restContinue.length > 0 && (
               <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3">
                 {restContinue.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex gap-2.5 p-2.5 rounded-xl bg-card border border-border hover:border-primary/20 transition-all group cursor-default"
-                  >
+                  <div key={item.id} className="flex gap-2.5 p-2.5 rounded-xl bg-card border border-border hover:border-primary/20 transition-all group">
                     <div className="w-10 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
                       {item.coverUrl || item.customCoverUrl ? (
-                        <img
-                          src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""}
-                          alt={item.title}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <BookOpen className="w-4 h-4 text-muted-foreground/30" />
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <h4 className="text-xs font-medium leading-tight line-clamp-2 mb-0.5">{item.title}</h4>
-                      <span className={cn("text-[9px] font-medium px-1 py-0.5 rounded self-start", STATUS_COLORS[item.status ?? ""] ?? "bg-muted text-muted-foreground")}>
-                        {STATUS_LABELS[item.status ?? ""] ?? item.status}
-                      </span>
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <h4 className="text-xs font-medium leading-tight line-clamp-2 mb-0.5">{item.title}</h4>
+                        <span className={cn("text-[9px] font-medium px-1 py-0.5 rounded", STATUS_COLORS[item.status ?? ""] ?? "bg-muted text-muted-foreground")}>
+                          {STATUS_LABELS[item.status ?? ""] ?? item.status}
+                        </span>
+                      </div>
+                      <button onClick={() => setEditItem(item)}
+                        className="mt-1 text-[9px] text-muted-foreground hover:text-primary flex items-center gap-0.5 transition-colors">
+                        <Pencil className="w-2.5 h-2.5" /> Edit
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -236,20 +268,20 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── All Media ── */}
+      {/* All Media */}
       <div>
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-display font-semibold">All Media</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-2 text-xs text-muted-foreground"
-            onClick={() => setLocation("/recommended")}
-            data-testid="button-see-recommendations"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Discover more
+          <Button variant="ghost" size="sm" className="gap-2 text-xs text-muted-foreground"
+            onClick={() => setLocation("/recommended")} data-testid="button-see-recommendations">
+            <Sparkles className="w-3.5 h-3.5" /> Discover more
           </Button>
+        </div>
+
+        <div className="relative mb-5">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Search titles, categories, status..." value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
         </div>
 
         {mediaLoading ? (
@@ -258,58 +290,90 @@ export default function Dashboard() {
               <div key={i} className="space-y-2">
                 <div className="aspect-[2/3] bg-muted animate-pulse rounded-xl" />
                 <div className="h-3.5 bg-muted animate-pulse rounded w-3/4" />
-                <div className="h-3 bg-muted animate-pulse rounded w-1/2" />
               </div>
             ))}
           </div>
-        ) : media && media.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
-            {media.map((item) => (
-              <div key={item.id} data-testid={`media-card-${item.id}`} className="group relative">
-                <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
-                  {item.coverUrl || item.customCoverUrl ? (
-                    <img
-                      src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""}
-                      alt={item.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/30 text-xs p-4 text-center gap-2">
-                      <BookOpen className="w-5 h-5 text-muted-foreground/50" />
-                      <span className="text-muted-foreground">{item.title}</span>
+        ) : filteredMedia.length > 0 ? (
+          <>
+            {searchQuery && (
+              <p className="text-xs text-muted-foreground mb-3">
+                {filteredMedia.length} result{filteredMedia.length !== 1 ? "s" : ""} for "{searchQuery}"
+              </p>
+            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
+              {filteredMedia.map((item) => (
+                <div key={item.id} data-testid={`media-card-${item.id}`} className="group relative">
+                  <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
+                    {item.coverUrl || item.customCoverUrl ? (
+                      <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/30 text-xs p-4 text-center gap-2">
+                        <BookOpen className="w-5 h-5 text-muted-foreground/50" />
+                        <span className="text-muted-foreground">{item.title}</span>
+                      </div>
+                    )}
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 gap-1.5">
+                      {item.status && (
+                        <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded self-start", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>
+                          {STATUS_LABELS[item.status] ?? item.status}
+                        </span>
+                      )}
+                      {item.currentChapter && <span className="text-[10px] text-white/70">{item.currentChapter}</span>}
+                      {(item as any).readingUrl && (
+                        <a href={(item as any).readingUrl} target="_blank" rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-white/15 hover:bg-white/25 text-white text-[10px] font-medium transition-colors">
+                          <ExternalLink className="w-3 h-3" /> {getSiteLabel((item as any).readingUrl)}
+                        </a>
+                      )}
+                      {/* Action buttons */}
+                      <div className="flex gap-1 mt-0.5">
+                        <button onClick={() => setEditItem(item)}
+                          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white text-[10px] transition-colors">
+                          <Pencil className="w-2.5 h-2.5" /> Edit
+                        </button>
+                        <button onClick={() => handleDrop(item.id, item.title)}
+                          className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 text-[10px] transition-colors">
+                          <XCircle className="w-2.5 h-2.5" /> Drop
+                        </button>
+                        <button onClick={() => handleMoveToAvoid(item.id, item.title)}
+                          className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-red-500/20 hover:bg-red-500/40 text-red-300 text-[10px] transition-colors">
+                          <AlertTriangle className="w-2.5 h-2.5" /> Avoid
+                        </button>
+                      </div>
                     </div>
-                  )}
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 gap-1">
-                    {item.status && (
-                      <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded self-start", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>
-                        {STATUS_LABELS[item.status] ?? item.status}
-                      </span>
-                    )}
+                    {item.hasUpdate && <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-green-400 shadow-lg shadow-green-400/50" />}
                     {item.tier && (
-                      <span className="text-xs font-display font-bold text-yellow-400">Tier {item.tier}</span>
-                    )}
-                    {item.currentChapter && (
-                      <span className="text-[10px] text-white/70">{item.currentChapter}</span>
+                      <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                        <span className="text-xs font-display font-black text-yellow-400">{item.tier}</span>
+                      </div>
                     )}
                   </div>
-                  {item.hasUpdate && (
-                    <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-green-400 shadow-lg shadow-green-400/50" />
-                  )}
-                  {item.tier && (
-                    <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center">
-                      <span className="text-xs font-display font-black text-yellow-400">{item.tier}</span>
+                  <div className="mt-2 space-y-0.5">
+                    <h3 className="font-medium text-sm leading-tight line-clamp-2">{item.title}</h3>
+                    <div className="flex items-center justify-between">
+                      <p className={cn("text-xs capitalize font-medium", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>
+                        {item.category}
+                      </p>
+                      {(item as any).readingUrl && (
+                        <a href={(item as any).readingUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5 transition-colors">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-                <div className="mt-2 space-y-0.5">
-                  <h3 className="font-medium text-sm leading-tight line-clamp-2">{item.title}</h3>
-                  <p className={cn("text-xs capitalize font-medium", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>
-                    {item.category}
-                  </p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </>
+        ) : mediaArray.length > 0 && searchQuery ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Search className="w-10 h-10 text-muted-foreground/30 mb-3" />
+            <p className="text-muted-foreground text-sm">No results for "{searchQuery}"</p>
+            <button className="text-xs text-primary mt-2 hover:underline" onClick={() => setSearchQuery("")}>Clear search</button>
           </div>
         ) : (
           <Card className="border-dashed">
@@ -322,8 +386,7 @@ export default function Dashboard() {
                 Start by adding the webtoons, manga, manhwa, and anime you've read or watched.
               </p>
               <Button onClick={() => setAddOpen(true)} className="gap-2" data-testid="button-add-first">
-                <Plus className="w-4 h-4" />
-                Add your first title
+                <Plus className="w-4 h-4" /> Add your first title
               </Button>
             </CardContent>
           </Card>
@@ -331,6 +394,7 @@ export default function Dashboard() {
       </div>
 
       <AddMediaDialog open={addOpen} onClose={() => setAddOpen(false)} />
+      <EditMediaDialog open={!!editItem} onClose={() => setEditItem(null)} media={editItem} />
     </div>
   );
 }

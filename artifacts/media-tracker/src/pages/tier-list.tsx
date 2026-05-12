@@ -7,7 +7,6 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn, proxyImage } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 const CATEGORIES = ["webtoon", "manhwa", "manga", "anime"] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -59,12 +58,14 @@ export default function TierList() {
     setDragOverTier(null);
   };
 
-  const tierGroups: Record<Tier, typeof media> = {
+  const mediaArray = Array.isArray(media) ? media : [];
+
+  const tierGroups: Record<Tier, typeof mediaArray> = {
     S: [], A: [], B: [], C: [], D: [], F: [],
   };
-  const unranked: typeof media = [];
+  const unranked: typeof mediaArray = [];
 
-  (media ?? []).forEach((item) => {
+  mediaArray.forEach((item) => {
     if (item.tier && item.tier in tierGroups) {
       tierGroups[item.tier as Tier]!.push(item);
     } else {
@@ -125,12 +126,12 @@ export default function TierList() {
                 </span>
               </div>
               <div className="flex-1 flex flex-wrap gap-3 items-center">
-                {(tierGroups[tier] ?? []).length === 0 ? (
+                {tierGroups[tier].length === 0 ? (
                   <span className="text-xs text-muted-foreground italic">
                     Drop {CATEGORY_LABELS[category].toLowerCase()} here
                   </span>
                 ) : (
-                  (tierGroups[tier] ?? []).map((item) => (
+                  tierGroups[tier].map((item) => (
                     <div
                       key={item.id}
                       data-testid={`tier-card-${item.id}`}
@@ -171,9 +172,7 @@ export default function TierList() {
               <h3 className="text-sm font-medium text-muted-foreground mb-3">
                 Unranked — drag to a tier above
               </h3>
-              <div
-                className="flex flex-wrap gap-3 p-4 rounded-xl border border-dashed border-border bg-muted/20 min-h-[100px]"
-              >
+              <div className="flex flex-wrap gap-3 p-4 rounded-xl border border-dashed border-border bg-muted/20 min-h-[100px]">
                 {unranked.map((item) => (
                   <div
                     key={item.id}
@@ -208,7 +207,7 @@ export default function TierList() {
             </div>
           )}
 
-          {(media ?? []).length === 0 && (
+          {mediaArray.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-muted-foreground">
                 No {CATEGORY_LABELS[category].toLowerCase()} in your library yet.

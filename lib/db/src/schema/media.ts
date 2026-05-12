@@ -13,7 +13,7 @@ export const mediaTable = pgTable("media", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   category: text("category").notNull(), // webtoon | manhwa | manga | anime
-  listType: text("list_type").notNull().default("library"), // library | to_read | avoid
+  listType: text("list_type").notNull().default("library"), // library | to_read | avoid | bl
   status: text("status"), // reading | watching | completed | paused | dropped | plan_to_read
   coverUrl: text("cover_url"),
   customCoverUrl: text("custom_cover_url"),
@@ -26,6 +26,7 @@ export const mediaTable = pgTable("media", {
   currentChapter: text("current_chapter"),
   totalChapters: text("total_chapters"),
   addedBy: text("added_by"),
+  readingUrl: text("reading_url"), // link to reading site
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

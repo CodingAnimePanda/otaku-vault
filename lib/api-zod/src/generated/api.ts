@@ -58,6 +58,7 @@ export const ListMediaResponseItem = zod.object({
   currentChapter: zod.string().nullish(),
   totalChapters: zod.string().nullish(),
   addedBy: zod.string().nullish(),
+  readingUrl: zod.string().nullish(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -85,6 +86,7 @@ export const CreateMediaBody = zod.object({
   notes: zod.string().nullish(),
   currentChapter: zod.string().nullish(),
   addedBy: zod.string().nullish(),
+  readingUrl: zod.string().nullish(),
 });
 
 /**
@@ -148,6 +150,7 @@ export const GetMediaUpdatesResponseItem = zod.object({
   currentChapter: zod.string().nullish(),
   totalChapters: zod.string().nullish(),
   addedBy: zod.string().nullish(),
+  readingUrl: zod.string().nullish(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -202,6 +205,7 @@ export const GetMediaResponse = zod.object({
   currentChapter: zod.string().nullish(),
   totalChapters: zod.string().nullish(),
   addedBy: zod.string().nullish(),
+  readingUrl: zod.string().nullish(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -235,6 +239,7 @@ export const UpdateMediaBody = zod.object({
   totalChapters: zod.string().nullish(),
   listType: zod.enum(["library", "to_read", "avoid", "bl"]).optional(),
   addedBy: zod.string().nullish(),
+  readingUrl: zod.string().nullish(),
 });
 
 export const UpdateMediaResponse = zod.object({
@@ -263,6 +268,7 @@ export const UpdateMediaResponse = zod.object({
   currentChapter: zod.string().nullish(),
   totalChapters: zod.string().nullish(),
   addedBy: zod.string().nullish(),
+  readingUrl: zod.string().nullish(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -311,6 +317,7 @@ export const UpdateMediaTierResponse = zod.object({
   currentChapter: zod.string().nullish(),
   totalChapters: zod.string().nullish(),
   addedBy: zod.string().nullish(),
+  readingUrl: zod.string().nullish(),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });

@@ -10,7 +10,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -156,8 +155,6 @@ function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
                 <FormControl><Input placeholder="e.g. Chapter 12" {...field} /></FormControl>
               </FormItem>
             )} />
-
-            {/* Cover search */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium">Cover</p>
@@ -168,7 +165,7 @@ function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
                   Search
                 </Button>
               </div>
-              {coverResults && coverResults.length > 0 && (
+              {Array.isArray(coverResults) && coverResults.length > 0 && (
                 <div className="flex gap-2 flex-wrap">
                   {coverResults.map((r, i) => (
                     <button key={i} type="button" onClick={() => setSelectedCover(r.coverUrl)}
@@ -192,14 +189,12 @@ function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
                 </FormItem>
               )} />
             </div>
-
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>
                 <FormLabel>Notes</FormLabel>
                 <FormControl><Textarea placeholder="..." rows={2} className="resize-none text-sm" {...field} /></FormControl>
               </FormItem>
             )} />
-
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
               <Button type="submit" className="bg-rose-500 hover:bg-rose-600 text-white" disabled={createMedia.isPending}>
@@ -222,6 +217,8 @@ export default function BLVault() {
   const { data: items, isLoading } = useListMedia({ listType: "bl" });
   const deleteMedia = useDeleteMedia();
   const updateMedia = useUpdateMedia();
+
+  const itemsArray = Array.isArray(items) ? items : [];
 
   const handleDelete = (id: number, title: string) => {
     deleteMedia.mutate({ id }, {
@@ -259,8 +256,8 @@ export default function BLVault() {
                 <Lock className="w-4 h-4 text-rose-400/50" />
               </div>
               <p className="text-muted-foreground text-sm mt-0.5">
-                {(items ?? []).length > 0
-                  ? `${items!.length} title${items!.length !== 1 ? "s" : ""} — just between us`
+                {itemsArray.length > 0
+                  ? `${itemsArray.length} title${itemsArray.length !== 1 ? "s" : ""} — just between us`
                   : "Your private collection, just between us ♡"}
               </p>
             </div>
@@ -284,7 +281,7 @@ export default function BLVault() {
             </div>
           ))}
         </div>
-      ) : (items ?? []).length === 0 ? (
+      ) : itemsArray.length === 0 ? (
         <Card className="border-dashed border-rose-500/20">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Heart className="w-12 h-12 text-rose-400/20 mb-4" />
@@ -292,10 +289,7 @@ export default function BLVault() {
             <p className="text-muted-foreground text-sm max-w-xs">
               Add your guilty pleasures here. No judgment, no one will know.
             </p>
-            <Button
-              className="mt-5 bg-rose-500 hover:bg-rose-600 text-white gap-2"
-              onClick={() => setAddOpen(true)}
-            >
+            <Button className="mt-5 bg-rose-500 hover:bg-rose-600 text-white gap-2" onClick={() => setAddOpen(true)}>
               <Plus className="w-4 h-4" />
               Add first title
             </Button>
@@ -303,7 +297,7 @@ export default function BLVault() {
         </Card>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
-          {(items ?? []).map((item) => (
+          {itemsArray.map((item) => (
             <div key={item.id} className="group relative">
               <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-rose-500/20 group-hover:ring-rose-400/50 transition-all duration-300">
                 {item.coverUrl || item.customCoverUrl ? (
@@ -317,7 +311,6 @@ export default function BLVault() {
                     <Heart className="w-8 h-8 text-rose-400/20" />
                   </div>
                 )}
-                {/* Hover overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 gap-2">
                   {item.status && (
                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 self-start">
@@ -340,7 +333,6 @@ export default function BLVault() {
                     </Button>
                   </div>
                 </div>
-                {/* Tier badge */}
                 {item.tier && (
                   <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center">
                     <span className="text-xs font-display font-black text-rose-300">{item.tier}</span>

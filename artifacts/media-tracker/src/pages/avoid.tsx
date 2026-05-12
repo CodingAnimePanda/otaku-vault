@@ -31,7 +31,9 @@ export default function Avoid() {
     );
   };
 
-  const grouped = (avoidList ?? []).reduce<Record<string, typeof avoidList>>((acc, item) => {
+  const avoidArray = Array.isArray(avoidList) ? avoidList : [];
+
+  const grouped = avoidArray.reduce<Record<string, typeof avoidArray>>((acc, item) => {
     if (!acc[item.category]) acc[item.category] = [];
     acc[item.category]!.push(item);
     return acc;
@@ -39,7 +41,7 @@ export default function Avoid() {
 
   return (
     <div className="space-y-6">
-      {/* Header — danger/warning aesthetic */}
+      {/* Header */}
       <div className="relative rounded-2xl bg-destructive/5 border border-destructive/20 p-6 overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-destructive/5 rounded-full -translate-y-8 translate-x-8 blur-xl" />
         <div className="relative flex items-center gap-4">
@@ -47,16 +49,14 @@ export default function Avoid() {
             <Skull className="w-6 h-6 text-destructive" />
           </div>
           <div>
-            <h1 className="text-3xl font-display font-bold text-destructive">
-              Avoid Like the Plague
-            </h1>
+            <h1 className="text-3xl font-display font-bold text-destructive">Avoid Like the Plague</h1>
             <p className="text-muted-foreground text-sm mt-0.5">
               Media you have been warned to stay away from. Consider yourself warned.
             </p>
           </div>
-          {(avoidList ?? []).length > 0 && (
+          {avoidArray.length > 0 && (
             <Badge className="ml-auto bg-destructive/10 text-destructive border-destructive/20 text-sm px-3 py-1">
-              {avoidList!.length} titles
+              {avoidArray.length} titles
             </Badge>
           )}
         </div>
@@ -68,7 +68,7 @@ export default function Avoid() {
             <div key={i} className="h-28 bg-muted animate-pulse rounded-xl" />
           ))}
         </div>
-      ) : (avoidList ?? []).length === 0 ? (
+      ) : avoidArray.length === 0 ? (
         <Card className="border-dashed border-destructive/20">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <AlertTriangle className="w-12 h-12 text-muted-foreground/30 mb-4" />
@@ -87,7 +87,7 @@ export default function Avoid() {
                 {category}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {(items ?? []).map((item) => (
+                {items.map((item) => (
                   <div
                     key={item.id}
                     data-testid={`avoid-card-${item.id}`}
@@ -118,16 +118,12 @@ export default function Avoid() {
                           </p>
                         )}
                         {item.notes && (
-                          <p className="text-[10px] text-destructive/70 mt-1 line-clamp-2 italic">
-                            "{item.notes}"
-                          </p>
+                          <p className="text-[10px] text-destructive/70 mt-1 line-clamp-2 italic">"{item.notes}"</p>
                         )}
                         {item.genres.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
                             {item.genres.slice(0, 2).map((g) => (
-                              <span key={g} className="text-[9px] bg-destructive/10 px-1.5 py-0.5 rounded text-destructive/70">
-                                {g}
-                              </span>
+                              <span key={g} className="text-[9px] bg-destructive/10 px-1.5 py-0.5 rounded text-destructive/70">{g}</span>
                             ))}
                           </div>
                         )}
