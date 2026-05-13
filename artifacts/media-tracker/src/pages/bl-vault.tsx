@@ -1,48 +1,34 @@
+// artifacts/media-tracker/src/pages/bl-vault.tsx
 import React, { useState } from "react";
 import {
   useListMedia,
   useDeleteMedia,
   useUpdateMedia,
   getListMediaQueryKey,
-  getGetMediaStatsQueryKey,
   useCreateMedia,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Heart, Lock, Plus, Trash2, BookOpen, Loader2, Search, Check } from "lucide-react";
+import { Heart, Lock, Plus, Trash2, BookOpen, Loader2, Search, Check, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn, proxyImage } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import {
-  useSearchCover,
-  getSearchCoverQueryKey,
-} from "@workspace/api-client-react";
+import { useSearchCover, getSearchCoverQueryKey } from "@workspace/api-client-react";
+import { EditMediaDialog } from "@/components/edit-media-dialog";
 
 const CATEGORIES = ["webtoon", "manhwa", "manga", "anime"] as const;
 const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
@@ -58,12 +44,8 @@ const addSchema = z.object({
 type AddFormValues = z.infer<typeof addSchema>;
 
 const STATUS_LABELS: Record<string, string> = {
-  reading: "Reading",
-  watching: "Watching",
-  completed: "Completed",
-  paused: "Paused",
-  dropped: "Dropped",
-  plan_to_read: "Plan to read",
+  reading: "Reading", watching: "Watching", completed: "Completed",
+  paused: "Paused", dropped: "Dropped", plan_to_read: "Plan to read",
 };
 
 function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -85,10 +67,7 @@ function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
     : { title: "", category: "manhwa" as const };
 
   const { data: coverResults, isFetching: coverFetching } = useSearchCover(searchParams, {
-    query: {
-      enabled: !!coverSearch?.title,
-      queryKey: getSearchCoverQueryKey(searchParams),
-    },
+    query: { enabled: !!coverSearch?.title, queryKey: getSearchCoverQueryKey(searchParams) },
   });
 
   const createMedia = useCreateMedia();
@@ -123,11 +102,7 @@ function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField control={form.control} name="title" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Title</FormLabel>
-                <FormControl><Input placeholder="Title..." {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
+              <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="Title..." {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <div className="grid grid-cols-2 gap-3">
               <FormField control={form.control} name="category" render={({ field }) => (
@@ -150,10 +125,7 @@ function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
               )} />
             </div>
             <FormField control={form.control} name="currentChapter" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Current Chapter/Episode</FormLabel>
-                <FormControl><Input placeholder="e.g. Chapter 12" {...field} /></FormControl>
-              </FormItem>
+              <FormItem><FormLabel>Current Chapter/Episode</FormLabel><FormControl><Input placeholder="e.g. Chapter 12" {...field} /></FormControl></FormItem>
             )} />
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -190,10 +162,7 @@ function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
               )} />
             </div>
             <FormField control={form.control} name="notes" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Notes</FormLabel>
-                <FormControl><Textarea placeholder="..." rows={2} className="resize-none text-sm" {...field} /></FormControl>
-              </FormItem>
+              <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea placeholder="..." rows={2} className="resize-none text-sm" {...field} /></FormControl></FormItem>
             )} />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
@@ -213,6 +182,7 @@ export default function BLVault() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
+  const [editItem, setEditItem] = useState<any | null>(null);
 
   const { data: items, isLoading } = useListMedia({ listType: "bl" });
   const deleteMedia = useDeleteMedia();
@@ -220,7 +190,7 @@ export default function BLVault() {
 
   const itemsArray = Array.isArray(items) ? items : [];
 
-  const handleDelete = (id: number, title: string) => {
+  const handleDelete = (id: number) => {
     deleteMedia.mutate({ id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListMediaQueryKey({ listType: "bl" }) });
@@ -241,10 +211,8 @@ export default function BLVault() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="relative rounded-2xl overflow-hidden border border-rose-500/20 bg-gradient-to-br from-rose-500/10 via-pink-500/5 to-transparent p-6">
         <div className="absolute top-0 right-0 w-40 h-40 bg-rose-500/10 rounded-full -translate-y-10 translate-x-10 blur-2xl" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-pink-500/10 rounded-full translate-y-6 -translate-x-6 blur-xl" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center">
@@ -256,18 +224,12 @@ export default function BLVault() {
                 <Lock className="w-4 h-4 text-rose-400/50" />
               </div>
               <p className="text-muted-foreground text-sm mt-0.5">
-                {itemsArray.length > 0
-                  ? `${itemsArray.length} title${itemsArray.length !== 1 ? "s" : ""} — just between us`
-                  : "Your private collection, just between us ♡"}
+                {itemsArray.length > 0 ? `${itemsArray.length} title${itemsArray.length !== 1 ? "s" : ""} — just between us` : "Your private collection, just between us ♡"}
               </p>
             </div>
           </div>
-          <Button
-            onClick={() => setAddOpen(true)}
-            className="bg-rose-500 hover:bg-rose-600 text-white gap-2 shadow-lg shadow-rose-500/20"
-          >
-            <Plus className="w-4 h-4" />
-            Add
+          <Button onClick={() => setAddOpen(true)} className="bg-rose-500 hover:bg-rose-600 text-white gap-2 shadow-lg shadow-rose-500/20">
+            <Plus className="w-4 h-4" /> Add
           </Button>
         </div>
       </div>
@@ -286,12 +248,9 @@ export default function BLVault() {
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Heart className="w-12 h-12 text-rose-400/20 mb-4" />
             <h3 className="font-medium text-lg mb-1">Vault is empty</h3>
-            <p className="text-muted-foreground text-sm max-w-xs">
-              Add your guilty pleasures here. No judgment, no one will know.
-            </p>
+            <p className="text-muted-foreground text-sm max-w-xs">Add your guilty pleasures here. No judgment, no one will know.</p>
             <Button className="mt-5 bg-rose-500 hover:bg-rose-600 text-white gap-2" onClick={() => setAddOpen(true)}>
-              <Plus className="w-4 h-4" />
-              Add first title
+              <Plus className="w-4 h-4" /> Add first title
             </Button>
           </CardContent>
         </Card>
@@ -301,25 +260,20 @@ export default function BLVault() {
             <div key={item.id} className="group relative">
               <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-rose-500/20 group-hover:ring-rose-400/50 transition-all duration-300">
                 {item.coverUrl || item.customCoverUrl ? (
-                  <img
-                    src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""}
-                    alt={item.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                  <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-rose-500/5">
                     <Heart className="w-8 h-8 text-rose-400/20" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 gap-2">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 gap-1.5">
                   {item.status && (
                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 self-start">
                       {STATUS_LABELS[item.status] ?? item.status}
                     </span>
                   )}
-                  {item.currentChapter && (
-                    <span className="text-[10px] text-white/60">{item.currentChapter}</span>
-                  )}
+                  {item.currentChapter && <span className="text-[10px] text-white/60">{item.currentChapter}</span>}
                   <div className="flex gap-1.5">
                     <Button size="sm" variant="ghost"
                       className="h-7 px-2 text-[10px] gap-1 flex-1 bg-white/10 hover:bg-white/20 text-white border-0"
@@ -327,8 +281,13 @@ export default function BLVault() {
                       <BookOpen className="w-3 h-3" /> Library
                     </Button>
                     <Button size="sm" variant="ghost"
+                      className="h-7 w-7 p-0 bg-white/10 hover:bg-white/20 text-white border-0"
+                      onClick={() => setEditItem(item)}>
+                      <Pencil className="w-3 h-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost"
                       className="h-7 w-7 p-0 bg-red-500/20 hover:bg-red-500/40 text-red-300 border-0"
-                      onClick={() => handleDelete(item.id, item.title)}>
+                      onClick={() => handleDelete(item.id)}>
                       <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
@@ -349,6 +308,7 @@ export default function BLVault() {
       )}
 
       <AddBLDialog open={addOpen} onClose={() => setAddOpen(false)} />
+      <EditMediaDialog open={!!editItem} onClose={() => setEditItem(null)} media={editItem} />
     </div>
   );
 }

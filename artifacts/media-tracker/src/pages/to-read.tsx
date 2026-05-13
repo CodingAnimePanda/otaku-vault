@@ -1,3 +1,4 @@
+// artifacts/media-tracker/src/pages/to-read.tsx
 import React, { useState, useMemo } from "react";
 import {
   useListMedia,
@@ -9,18 +10,25 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookmarkPlus, Trash2, BookOpen, X } from "lucide-react";
+import { BookmarkPlus, Trash2, BookOpen, X, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn, proxyImage } from "@/lib/utils";
+import { EditMediaDialog } from "@/components/edit-media-dialog";
 
-// Only reading categories (no anime)
 const READ_CATEGORIES = ["webtoon", "manhwa", "manga"] as const;
+
+const CATEGORY_DOT: Record<string, string> = {
+  webtoon: "bg-blue-400",
+  manhwa: "bg-purple-400",
+  manga: "bg-orange-400",
+};
 
 export default function ToRead() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
+  const [editItem, setEditItem] = useState<any | null>(null);
 
   const { data: toReadList, isLoading } = useListMedia({ listType: "to_read" });
   const deleteMedia = useDeleteMedia();
@@ -50,7 +58,6 @@ export default function ToRead() {
       (item) => READ_CATEGORIES.includes(item.category as any)
     ), [toReadList]);
 
-  // All unique genres across filtered list
   const allGenres = useMemo(() => {
     const genres = new Set<string>();
     toReadArray.forEach((item) => item.genres?.forEach((g) => genres.add(g)));
@@ -71,18 +78,6 @@ export default function ToRead() {
       return acc;
     }, {}), [filtered]);
 
-  const CATEGORY_COLORS: Record<string, string> = {
-    webtoon: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    manhwa: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-    manga: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  };
-
-  const CATEGORY_DOT: Record<string, string> = {
-    webtoon: "bg-blue-400",
-    manhwa: "bg-purple-400",
-    manga: "bg-orange-400",
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -94,26 +89,21 @@ export default function ToRead() {
           <p className="text-muted-foreground text-sm mt-0.5">Manga, manhwa & webtoons to check out</p>
         </div>
         {toReadArray.length > 0 && (
-          <Badge variant="secondary" className="ml-auto text-sm px-3 py-1">
-            {toReadArray.length} titles
-          </Badge>
+          <Badge variant="secondary" className="ml-auto text-sm px-3 py-1">{toReadArray.length} titles</Badge>
         )}
       </div>
 
       {/* Category filter */}
       <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setActiveCategory(null)}
-          className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+        <button onClick={() => setActiveCategory(null)}
+          className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
             !activeCategory ? "bg-primary text-primary-foreground border-transparent" : "bg-card border-border text-muted-foreground hover:text-foreground"
-          )}
-        >All</button>
+          )}>All</button>
         {READ_CATEGORIES.map((cat) => (
           <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
-            className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all border capitalize",
+            className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border capitalize transition-all",
               activeCategory === cat ? "bg-primary text-primary-foreground border-transparent" : "bg-card border-border text-muted-foreground hover:text-foreground"
-            )}
-          >{cat}</button>
+            )}>{cat}</button>
         ))}
       </div>
 
@@ -123,10 +113,9 @@ export default function ToRead() {
           <span className="text-xs text-muted-foreground font-medium">Genre:</span>
           {allGenres.map((genre) => (
             <button key={genre} onClick={() => setActiveGenre(activeGenre === genre ? null : genre)}
-              className={cn("px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border",
+              className={cn("px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all",
                 activeGenre === genre ? "bg-accent text-accent-foreground border-transparent" : "bg-card border-border text-muted-foreground hover:text-foreground"
-              )}
-            >{genre}</button>
+              )}>{genre}</button>
           ))}
           {activeGenre && (
             <button onClick={() => setActiveGenre(null)} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
@@ -186,9 +175,7 @@ export default function ToRead() {
                               <button key={g} onClick={() => setActiveGenre(g)}
                                 className={cn("text-[9px] px-1.5 py-0.5 rounded transition-colors",
                                   activeGenre === g ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground hover:bg-accent/20"
-                                )}>
-                                {g}
-                              </button>
+                                )}>{g}</button>
                             ))}
                           </div>
                         )}
@@ -196,11 +183,15 @@ export default function ToRead() {
                       </div>
                       <div className="flex gap-1 mt-2">
                         <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1 hover:bg-primary/10 hover:text-primary"
-                          onClick={() => handleMoveToLibrary(item.id, item.title)} data-testid={`move-to-library-${item.id}`}>
+                          onClick={() => handleMoveToLibrary(item.id, item.title)}>
                           <BookOpen className="w-3 h-3" /> Add to Library
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1 hover:bg-destructive/10 hover:text-destructive ml-auto"
-                          onClick={() => handleRemove(item.id, item.title)} data-testid={`remove-to-read-${item.id}`}>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-primary/10 hover:text-primary ml-auto"
+                          onClick={() => setEditItem(item)}>
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => handleRemove(item.id, item.title)}>
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
@@ -212,6 +203,8 @@ export default function ToRead() {
           ))}
         </div>
       )}
+
+      <EditMediaDialog open={!!editItem} onClose={() => setEditItem(null)} media={editItem} />
     </div>
   );
 }

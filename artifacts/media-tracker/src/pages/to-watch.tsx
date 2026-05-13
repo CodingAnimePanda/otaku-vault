@@ -1,3 +1,4 @@
+// artifacts/media-tracker/src/pages/to-watch.tsx
 import React, { useState, useMemo } from "react";
 import {
   useListMedia,
@@ -9,14 +10,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tv, Trash2, BookOpen, X } from "lucide-react";
+import { Tv, Trash2, BookOpen, X, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn, proxyImage } from "@/lib/utils";
+import { EditMediaDialog } from "@/components/edit-media-dialog";
 
 export default function ToWatch() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
+  const [editItem, setEditItem] = useState<any | null>(null);
 
   const { data: toWatchList, isLoading } = useListMedia({ listType: "to_read" });
   const deleteMedia = useDeleteMedia();
@@ -41,7 +44,6 @@ export default function ToWatch() {
     });
   };
 
-  // Only anime
   const animeArray = useMemo(() =>
     (Array.isArray(toWatchList) ? toWatchList : []).filter(
       (item) => item.category === "anime"
@@ -69,9 +71,7 @@ export default function ToWatch() {
           <p className="text-muted-foreground text-sm mt-0.5">Anime you want to watch</p>
         </div>
         {animeArray.length > 0 && (
-          <Badge variant="secondary" className="ml-auto text-sm px-3 py-1">
-            {animeArray.length} titles
-          </Badge>
+          <Badge variant="secondary" className="ml-auto text-sm px-3 py-1">{animeArray.length} titles</Badge>
         )}
       </div>
 
@@ -81,10 +81,9 @@ export default function ToWatch() {
           <span className="text-xs text-muted-foreground font-medium">Genre:</span>
           {allGenres.map((genre) => (
             <button key={genre} onClick={() => setActiveGenre(activeGenre === genre ? null : genre)}
-              className={cn("px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border",
+              className={cn("px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all",
                 activeGenre === genre ? "bg-accent text-accent-foreground border-transparent" : "bg-card border-border text-muted-foreground hover:text-foreground"
-              )}
-            >{genre}</button>
+              )}>{genre}</button>
           ))}
           {activeGenre && (
             <button onClick={() => setActiveGenre(null)} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
@@ -103,9 +102,7 @@ export default function ToWatch() {
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Tv className="w-12 h-12 text-muted-foreground/30 mb-4" />
             <h3 className="font-medium text-lg mb-1">Nothing here yet</h3>
-            <p className="text-muted-foreground text-sm max-w-sm">
-              Add anime with the "To-Read" list type to see them here.
-            </p>
+            <p className="text-muted-foreground text-sm max-w-sm">Add anime with the "To-Read" list type to see them here.</p>
           </CardContent>
         </Card>
       ) : filtered.length === 0 ? (
@@ -139,9 +136,7 @@ export default function ToWatch() {
                         <button key={g} onClick={() => setActiveGenre(g)}
                           className={cn("text-[9px] px-1.5 py-0.5 rounded transition-colors",
                             activeGenre === g ? "bg-pink-500/20 text-pink-400" : "bg-muted text-muted-foreground hover:bg-pink-500/10"
-                          )}>
-                          {g}
-                        </button>
+                          )}>{g}</button>
                       ))}
                     </div>
                   )}
@@ -152,7 +147,11 @@ export default function ToWatch() {
                     onClick={() => handleMoveToLibrary(item.id, item.title)}>
                     <BookOpen className="w-3 h-3" /> Add to Library
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1 hover:bg-destructive/10 hover:text-destructive ml-auto"
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-primary/10 hover:text-primary ml-auto"
+                    onClick={() => setEditItem(item)}>
+                    <Pencil className="w-3 h-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => handleRemove(item.id, item.title)}>
                     <Trash2 className="w-3 h-3" />
                   </Button>
@@ -162,6 +161,8 @@ export default function ToWatch() {
           ))}
         </div>
       )}
+
+      <EditMediaDialog open={!!editItem} onClose={() => setEditItem(null)} media={editItem} />
     </div>
   );
 }
