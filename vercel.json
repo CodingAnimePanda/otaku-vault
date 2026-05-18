@@ -4,5 +4,9 @@
   "framework": null,
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  ],
+  "env": {
+    "PORT": "4173",
+    "BASE_PATH": "/"
+  }
 }
