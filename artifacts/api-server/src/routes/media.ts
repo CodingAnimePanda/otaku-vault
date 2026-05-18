@@ -1,31 +1,26 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
+import { getAuth } from "@clerk/express";
 import { db, mediaTable } from "@workspace/db";
 import {
-  ListMediaQueryParams,
-  CreateMediaBody,
-  UpdateMediaBody,
-  UpdateMediaTierBody,
-  GetMediaParams,
-  UpdateMediaParams,
-  DeleteMediaParams,
-  UpdateMediaTierParams,
-  CheckMediaUpdateParams,
-  SearchCoverQueryParams,
-  GetRecommendationsQueryParams,
-  ListMediaResponseItem,
-  GetMediaResponse,
-  GetMediaStatsResponse,
-  GetRecommendationsResponseItem,
-  GetMediaUpdatesResponseItem,
-  SearchCoverResponseItem,
-  CheckMediaUpdateResponse,
+  ListMediaQueryParams, CreateMediaBody, UpdateMediaBody,
+  UpdateMediaTierBody, GetMediaParams, UpdateMediaParams,
+  DeleteMediaParams, UpdateMediaTierParams, CheckMediaUpdateParams,
+  SearchCoverQueryParams, GetRecommendationsQueryParams,
+  ListMediaResponseItem, GetMediaResponse, GetMediaStatsResponse,
+  GetRecommendationsResponseItem, GetMediaUpdatesResponseItem,
+  SearchCoverResponseItem, CheckMediaUpdateResponse,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-// ── Serialize ─────────────────────────────────────────────────────────────────
+function requireAuth(req: any, res: any): string | null {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return null; }
+  return userId;
+}
+
 function serializeMedia(row: typeof mediaTable.$inferSelect) {
   return {
     id: row.id,
@@ -42,7 +37,6 @@ function serializeMedia(row: typeof mediaTable.$inferSelect) {
     hasUpdate: row.hasUpdate,
     lastCheckedAt: row.lastCheckedAt?.toISOString() ?? null,
     currentChapter: row.currentChapter ?? null,
-    latestChapter: row.latestChapter ?? null,
     totalChapters: row.totalChapters ?? null,
     addedBy: row.addedBy ?? null,
     readingUrl: row.readingUrl ?? null,
@@ -51,100 +45,61 @@ function serializeMedia(row: typeof mediaTable.$inferSelect) {
   };
 }
 
-// ── Real chapter/episode lookup ───────────────────────────────────────────────
-
-/**
- * Search MangaDex for a title and return the latest chapter number.
- * Works for manga, manhwa, webtoon.
- */
 async function getLatestChapterFromMangaDex(title: string): Promise<string | null> {
   try {
-    // Search for the manga by title
     const searchUrl = `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=5&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`;
     const searchResp = await fetch(searchUrl);
     if (!searchResp.ok) return null;
-
-    const searchJson = await searchResp.json() as {
-      data?: Array<{ id: string; attributes?: { title?: Record<string, string> } }>;
-    };
-
+    const searchJson = await searchResp.json() as { data?: Array<{ id: string }> };
     if (!searchJson.data?.length) return null;
-
-    // Pick the best match (first result)
     const mangaId = searchJson.data[0].id;
-
-    // Get the latest chapter for this manga
     const chapUrl = `https://api.mangadex.org/chapter?manga=${mangaId}&translatedLanguage[]=en&order[chapter]=desc&limit=1`;
     const chapResp = await fetch(chapUrl);
     if (!chapResp.ok) return null;
-
-    const chapJson = await chapResp.json() as {
-      data?: Array<{ attributes?: { chapter?: string; title?: string } }>;
-    };
-
+    const chapJson = await chapResp.json() as { data?: Array<{ attributes?: { chapter?: string; title?: string } }> };
     if (!chapJson.data?.length) return null;
-
     const chap = chapJson.data[0].attributes;
     if (!chap?.chapter) return null;
-
     return `Chapter ${chap.chapter}${chap.title ? `: ${chap.title}` : ""}`;
   } catch (err) {
-    logger.warn({ err, title }, "MangaDex chapter lookup failed");
+    logger.warn({ err, title }, "MangaDex lookup failed");
     return null;
   }
 }
 
-/**
- * Search Jikan (MyAnimeList) for an anime and return the latest episode count.
- */
 async function getLatestEpisodeFromJikan(title: string): Promise<string | null> {
   try {
     const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=3&sfw=true`;
     const resp = await fetch(url);
     if (!resp.ok) return null;
-
-    const json = await resp.json() as {
-      data?: Array<{
-        title: string;
-        episodes?: number | null;
-        airing?: boolean;
-        status?: string;
-      }>;
-    };
-
+    const json = await resp.json() as { data?: Array<{ episodes?: number | null; airing?: boolean }> };
     if (!json.data?.length) return null;
-
     const anime = json.data[0];
-
-    if (anime.episodes) {
-      return anime.airing
-        ? `${anime.episodes}+ episodes (airing)`
-        : `${anime.episodes} episodes`;
-    }
-
+    if (anime.episodes) return anime.airing ? `${anime.episodes}+ episodes (airing)` : `${anime.episodes} episodes`;
     if (anime.airing) return "Currently airing";
     return null;
   } catch (err) {
-    logger.warn({ err, title }, "Jikan episode lookup failed");
+    logger.warn({ err, title }, "Jikan lookup failed");
     return null;
   }
 }
 
-// ── Routes ────────────────────────────────────────────────────────────────────
-
 // GET /media
 router.get("/media", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
   const parsed = ListMediaQueryParams.safeParse(req.query);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const { category, listType, status } = parsed.data;
-  const conditions = [];
+  const conditions: any[] = [eq(mediaTable.userId, userId)];
   if (category) conditions.push(eq(mediaTable.category, category));
   if (listType) conditions.push(eq(mediaTable.listType, listType));
   if (status) conditions.push(eq(mediaTable.status, status));
 
   const rows = await db.select().from(mediaTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(mediaTable.createdAt);
 
   res.json(rows.map(serializeMedia).map((item) => ListMediaResponseItem.parse(item)));
@@ -152,6 +107,9 @@ router.get("/media", async (req, res): Promise<void> => {
 
 // POST /media
 router.post("/media", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
   const parsed = CreateMediaBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
@@ -167,14 +125,18 @@ router.post("/media", async (req, res): Promise<void> => {
     currentChapter: data.currentChapter ?? null,
     addedBy: data.addedBy ?? null,
     readingUrl: data.readingUrl ?? null,
+    userId,
   }).returning();
 
   res.status(201).json(GetMediaResponse.parse(serializeMedia(row)));
 });
 
 // GET /media/stats
-router.get("/media/stats", async (_req, res): Promise<void> => {
-  const rows = await db.select().from(mediaTable);
+router.get("/media/stats", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const rows = await db.select().from(mediaTable).where(eq(mediaTable.userId, userId));
 
   const totalByCategory: Record<string, number> = { webtoon: 0, manhwa: 0, manga: 0, anime: 0 };
   const completedByCategory: Record<string, number> = { webtoon: 0, manhwa: 0, manga: 0, anime: 0 };
@@ -197,14 +159,19 @@ router.get("/media/stats", async (_req, res): Promise<void> => {
 
 // GET /media/recommendations
 router.get("/media/recommendations", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
   const parsed = GetRecommendationsQueryParams.safeParse(req.query);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const { category } = parsed.data;
-  const libraryRows = await db.select().from(mediaTable).where(eq(mediaTable.listType, "library"));
+  const libraryRows = await db.select().from(mediaTable)
+    .where(and(eq(mediaTable.listType, "library"), eq(mediaTable.userId, userId)));
   const userTitles = new Set(libraryRows.map((r) => r.title.toLowerCase()));
-  const avoidTitles = await db.select({ title: mediaTable.title }).from(mediaTable).where(eq(mediaTable.listType, "avoid"));
-  const avoidSet = new Set(avoidTitles.map((r) => r.title.toLowerCase()));
+  const avoidRows = await db.select({ title: mediaTable.title }).from(mediaTable)
+    .where(and(eq(mediaTable.listType, "avoid"), eq(mediaTable.userId, userId)));
+  const avoidSet = new Set(avoidRows.map((r) => r.title.toLowerCase()));
 
   const recommendations: Array<{
     title: string; category: string; coverUrl: string | null;
@@ -227,7 +194,6 @@ router.get("/media/recommendations", async (req, res): Promise<void> => {
         }
       } catch (err) { logger.warn({ err }, "Failed to fetch anime recommendations"); }
     }
-
     if (cat === "manga") {
       try {
         const resp = await fetch(`https://api.jikan.moe/v4/manga?order_by=score&sort=desc&limit=6&sfw=true`);
@@ -241,7 +207,6 @@ router.get("/media/recommendations", async (req, res): Promise<void> => {
         }
       } catch (err) { logger.warn({ err }, "Failed to fetch manga recommendations"); }
     }
-
     if (cat === "manhwa" || cat === "webtoon") {
       try {
         const resp = await fetch(`https://api.mangadex.org/manga?originalLanguage[]=ko&order[rating]=desc&limit=6&contentRating[]=safe&includes[]=cover_art`);
@@ -266,13 +231,19 @@ router.get("/media/recommendations", async (req, res): Promise<void> => {
 });
 
 // GET /media/updates
-router.get("/media/updates", async (_req, res): Promise<void> => {
-  const rows = await db.select().from(mediaTable).where(eq(mediaTable.hasUpdate, true));
+router.get("/media/updates", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const rows = await db.select().from(mediaTable)
+    .where(and(eq(mediaTable.hasUpdate, true), eq(mediaTable.userId, userId)));
   res.json(rows.map((r) => GetMediaUpdatesResponseItem.parse(serializeMedia(r))));
 });
 
 // GET /media/cover-search
 router.get("/media/cover-search", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
   const parsed = SearchCoverQueryParams.safeParse(req.query);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
@@ -328,15 +299,20 @@ router.get("/media/proxy-cover", async (req, res): Promise<void> => {
 
 // GET /media/:id
 router.get("/media/:id", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
   const params = GetMediaParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
-  const [row] = await db.select().from(mediaTable).where(eq(mediaTable.id, params.data.id));
+  const [row] = await db.select().from(mediaTable)
+    .where(and(eq(mediaTable.id, params.data.id), eq(mediaTable.userId, userId)));
   if (!row) { res.status(404).json({ error: "Media not found" }); return; }
   res.json(GetMediaResponse.parse(serializeMedia(row)));
 });
 
 // PUT /media/:id
 router.put("/media/:id", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
   const params = UpdateMediaParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateMediaBody.safeParse(req.body);
@@ -345,6 +321,7 @@ router.put("/media/:id", async (req, res): Promise<void> => {
   const updates: Partial<typeof mediaTable.$inferInsert> = {};
   const data = parsed.data;
   if (data.title !== undefined) updates.title = data.title;
+  if ((data as any).category !== undefined) updates.category = (data as any).category;
   if (data.status !== undefined) updates.status = data.status ?? null;
   if (data.coverUrl !== undefined) updates.coverUrl = data.coverUrl ?? null;
   if (data.customCoverUrl !== undefined) updates.customCoverUrl = data.customCoverUrl ?? null;
@@ -358,38 +335,50 @@ router.put("/media/:id", async (req, res): Promise<void> => {
   if (data.addedBy !== undefined) updates.addedBy = data.addedBy ?? null;
   if (data.readingUrl !== undefined) updates.readingUrl = data.readingUrl ?? null;
 
-  const [row] = await db.update(mediaTable).set(updates).where(eq(mediaTable.id, params.data.id)).returning();
+  const [row] = await db.update(mediaTable).set(updates)
+    .where(and(eq(mediaTable.id, params.data.id), eq(mediaTable.userId, userId)))
+    .returning();
   if (!row) { res.status(404).json({ error: "Media not found" }); return; }
   res.json(GetMediaResponse.parse(serializeMedia(row)));
 });
 
 // DELETE /media/:id
 router.delete("/media/:id", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
   const params = DeleteMediaParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
-  const [row] = await db.delete(mediaTable).where(eq(mediaTable.id, params.data.id)).returning();
+  const [row] = await db.delete(mediaTable)
+    .where(and(eq(mediaTable.id, params.data.id), eq(mediaTable.userId, userId)))
+    .returning();
   if (!row) { res.status(404).json({ error: "Media not found" }); return; }
   res.sendStatus(204);
 });
 
 // PUT /media/:id/tier
 router.put("/media/:id/tier", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
   const params = UpdateMediaTierParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateMediaTierBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const [row] = await db.update(mediaTable).set({ tier: parsed.data.tier ?? null }).where(eq(mediaTable.id, params.data.id)).returning();
+  const [row] = await db.update(mediaTable).set({ tier: parsed.data.tier ?? null })
+    .where(and(eq(mediaTable.id, params.data.id), eq(mediaTable.userId, userId)))
+    .returning();
   if (!row) { res.status(404).json({ error: "Media not found" }); return; }
   res.json(GetMediaResponse.parse(serializeMedia(row)));
 });
 
 // POST /media/:id/check-update
-// Now does REAL chapter lookup via MangaDex (manga/manhwa/webtoon) and Jikan (anime)
 router.post("/media/:id/check-update", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
   const params = CheckMediaUpdateParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
-  const [existing] = await db.select().from(mediaTable).where(eq(mediaTable.id, params.data.id));
+  const [existing] = await db.select().from(mediaTable)
+    .where(and(eq(mediaTable.id, params.data.id), eq(mediaTable.userId, userId)));
   if (!existing) { res.status(404).json({ error: "Media not found" }); return; }
 
   const checkedAt = new Date();
@@ -410,54 +399,10 @@ router.post("/media/:id/check-update", async (req, res): Promise<void> => {
     hasUpdate = true;
   }
 
-  await db.update(mediaTable)
-    .set({ hasUpdate, lastCheckedAt: checkedAt, latestChapter })  // ← saves latestChapter
-    .where(eq(mediaTable.id, params.data.id));
+  await db.update(mediaTable).set({ hasUpdate, lastCheckedAt: checkedAt })
+    .where(and(eq(mediaTable.id, params.data.id), eq(mediaTable.userId, userId)));
 
   res.json(CheckMediaUpdateResponse.parse({ hasUpdate, latestChapter, checkedAt: checkedAt.toISOString() }));
-});
-
-// POST /media/check-all-updates
-// Checks all active (reading/watching) library items in one call.
-// Called automatically when the frontend loads.
-router.post("/media/check-all-updates", async (_req, res): Promise<void> => {
-  const activeItems = await db.select().from(mediaTable).where(
-    and(eq(mediaTable.listType, "library"))
-  );
-
-  const readingItems = activeItems.filter(
-    (item) => item.status === "reading" || item.status === "watching"
-  );
-
-  const results: Array<{ id: number; hasUpdate: boolean; latestChapter: string | null }> = [];
-
-  // Check each item — run sequentially to be polite to external APIs
-  for (const item of readingItems) {
-    let latestChapter: string | null = null;
-
-    if (item.category === "anime") {
-      latestChapter = await getLatestEpisodeFromJikan(item.title);
-    } else {
-      latestChapter = await getLatestChapterFromMangaDex(item.title);
-    }
-
-    let hasUpdate = false;
-    if (latestChapter && item.currentChapter) {
-      const latestNum = parseFloat(latestChapter.replace(/[^\d.]/g, "") || "0");
-      const currentNum = parseFloat(item.currentChapter.replace(/[^\d.]/g, "") || "0");
-      hasUpdate = latestNum > currentNum;
-    } else if (latestChapter && !item.currentChapter) {
-      hasUpdate = true;
-    }
-
-    await db.update(mediaTable)
-      .set({ hasUpdate, lastCheckedAt: new Date(), latestChapter })
-      .where(eq(mediaTable.id, item.id));
-
-    results.push({ id: item.id, hasUpdate, latestChapter });
-  }
-
-  res.json({ checked: results.length, results });
 });
 
 export default router;

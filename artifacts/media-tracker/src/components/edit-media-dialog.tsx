@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 
 const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
 const LIST_TYPES = ["library", "to_read", "avoid"] as const;
+const CATEGORIES = ["webtoon", "manhwa", "manga", "anime"] as const;
 
 interface ReadingSite { label: string; url: string; emoji: string; }
 const DEFAULT_SITES: ReadingSite[] = [
@@ -56,6 +57,7 @@ function loadSites(): ReadingSite[] {
 
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
+  category: z.enum(CATEGORIES),
   status: z.enum(STATUSES).optional(),
   listType: z.enum(LIST_TYPES),
   currentChapter: z.string().optional(),
@@ -96,13 +98,18 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
   const [dropReason, setDropReason] = useState("");
 
   const isFavorite = media ? (favorites?.has(media.id) ?? false) : false;
-  const watchedStatus = useForm<FormValues>().watch;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      title: "", status: undefined, listType: "library",
-      currentChapter: "", notes: "", coverUrl: "", readingUrl: "",
+      title: "",
+      category: "manhwa",
+      status: undefined,
+      listType: "library",
+      currentChapter: "",
+      notes: "",
+      coverUrl: "",
+      readingUrl: "",
     },
   });
 
@@ -112,6 +119,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
     if (media && open) {
       form.reset({
         title: media.title,
+        category: (media.category as any) ?? "manhwa",
         status: (media.status as any) ?? undefined,
         listType: (media.listType as any) ?? "library",
         currentChapter: media.currentChapter ?? "",
@@ -129,7 +137,6 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
 
   const onSubmit = (values: FormValues) => {
     if (!media) return;
-    // Save drop reason if status is dropped
     if (values.status === "dropped" && onSaveDropReason) {
       onSaveDropReason(media.id, dropReason);
     }
@@ -138,6 +145,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         id: media.id,
         data: {
           title: values.title,
+          category: values.category as any,
           status: (values.status as any) ?? null,
           listType: values.listType as any,
           currentChapter: values.currentChapter || null,
@@ -197,7 +205,22 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
               </FormItem>
             )} />
 
+            {/* Category + List row */}
             <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="category" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )} />
+
               <FormField control={form.control} name="listType" render={({ field }) => (
                 <FormItem>
                   <FormLabel>List</FormLabel>
@@ -211,28 +234,28 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                   </Select>
                 </FormItem>
               )} />
-
-              <FormField control={form.control} name="status" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="No status" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {STATUSES.map((s) => (
-                        <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, " ")}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )} />
             </div>
 
-            {/* Drop reason — only shown when status is dropped */}
+            <FormField control={form.control} name="status" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="No status" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    {STATUSES.map((s) => (
+                      <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, " ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )} />
+
+            {/* Drop reason */}
             {currentStatus === "dropped" && (
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-red-400">Drop Reason (optional)</label>
                 <Textarea
-                  placeholder="Why did you drop this? e.g. Lost interest after chapter 30, art style changed..."
+                  placeholder="Why did you drop this? e.g. Lost interest after chapter 30..."
                   value={dropReason}
                   onChange={(e) => setDropReason(e.target.value)}
                   rows={2}

@@ -30,6 +30,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useClerk, useUser } from "@clerk/clerk-react";
+import { LogOut } from "lucide-react";
 
 export interface ReadingSite {
   label: string;
@@ -114,6 +116,20 @@ function SitesDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function UserAccountButton() {
+  const { signOut } = useClerk();
+  const { user } = useUser();
+  return (
+    <button
+      onClick={() => signOut({ redirectUrl: "/sign-in" })}
+      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+    >
+      <LogOut className="w-3.5 h-3.5" />
+      Sign out {user?.firstName ? `(${user.firstName})` : ""}
+    </button>
   );
 }
 
@@ -233,6 +249,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <Settings className="w-3.5 h-3.5" />
           Manage Reading Sites
         </button>
+        <UserButton />
       </div>
     </>
   );
@@ -276,4 +293,5 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <SitesDialog open={sitesOpen} onClose={() => setSitesOpen(false)} />
     </div>
   );
+
 }

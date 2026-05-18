@@ -1,8 +1,8 @@
-// artifacts/media-tracker/src/App.tsx
-import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SignIn, SignUp, useAuth } from "@clerk/clerk-react";
 import NotFound from "@/pages/not-found";
 import { Layout } from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
@@ -18,11 +18,37 @@ import QuotesPage from "@/pages/quotes";
 
 const queryClient = new QueryClient();
 
-function Router() {
+function ProtectedRouter() {
+  const { isLoaded, isSignedIn } = useAuth();
   const [location] = useLocation();
 
-  const isNormiePage = location.startsWith("/normie");
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
+  // Auth pages — show centered card
+  if (location === "/sign-in" || location === "/sign-up") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        {location === "/sign-in" ? (
+          <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" />
+        ) : (
+          <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" />
+        )}
+      </div>
+    );
+  }
+
+  // Not signed in — redirect to sign-in
+  if (!isSignedIn) {
+    return <Redirect to="/sign-in" />;
+  }
+
+  const isNormiePage = location.startsWith("/normie");
   if (isNormiePage) {
     return (
       <Switch>
@@ -57,7 +83,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <ProtectedRouter />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>
