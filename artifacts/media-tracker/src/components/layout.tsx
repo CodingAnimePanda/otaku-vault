@@ -7,7 +7,6 @@ import {
   LayoutList,
   Star,
   AlertTriangle,
-  BellRing,
   Menu,
   BookOpen,
   Heart,
@@ -156,7 +155,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/recommended", label: "Recommended", icon: Star },
     { href: "/to-read", label: "To Read", icon: ListPlus },
     { href: "/to-watch", label: "To Watch", icon: Tv },
-    { href: "/updates", label: "Updates", icon: BellRing },
     { href: "/avoid", label: "Avoid", icon: AlertTriangle, className: "text-destructive" },
   ];
 
@@ -205,13 +203,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </Link>
         )}
 
-        {/* Extras section */}
         <div className="pt-3 mt-2 border-t border-border space-y-1">
           <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider px-3 pb-1">Collections</p>
           {extraNavItems.map((item) => <NavLink key={item.href} {...item} />)}
         </div>
 
-        {/* Normie Stuff */}
         <div className="pt-3 mt-1 border-t border-border">
           <Link href="/normie"
             className={cn("flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors group",

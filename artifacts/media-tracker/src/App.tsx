@@ -11,7 +11,6 @@ import Recommendations from "@/pages/recommendations";
 import ToRead from "@/pages/to-read";
 import ToWatch from "@/pages/to-watch";
 import Avoid from "@/pages/avoid";
-import Updates from "@/pages/updates";
 import BLVault from "@/pages/bl-vault";
 import NormiePage from "@/pages/normie";
 import MomentsPage from "@/pages/moments";
@@ -22,7 +21,6 @@ const queryClient = new QueryClient();
 function Router() {
   const [location] = useLocation();
 
-  // Normie pages get their own layout
   const isNormiePage = location.startsWith("/normie");
 
   if (isNormiePage) {
@@ -45,7 +43,6 @@ function Router() {
         <Route path="/to-read" component={ToRead} />
         <Route path="/to-watch" component={ToWatch} />
         <Route path="/avoid" component={Avoid} />
-        <Route path="/updates" component={Updates} />
         <Route path="/bl-vault" component={BLVault} />
         <Route path="/moments" component={MomentsPage} />
         <Route path="/quotes" component={QuotesPage} />
