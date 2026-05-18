@@ -3,6 +3,19 @@ lockfileVersion: '9.0'
 settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
+  lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: false
+  excludeLinksFromLockfile: false
+
+patchedDependencies: {}
+
+onlyBuiltDependencies:
+  - '@clerk/shared'
+  - esbuild
+  - '@tailwindcss/oxide'
+  - lightningcss
 
 catalogs:
   default:
