@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm install --unsafe-perm && pnpm --filter ./artifacts/media-tracker run build",
+  "buildCommand": "pnpm --filter ./artifacts/media-tracker run build",
   "outputDirectory": "artifacts/media-tracker/dist/public",
   "framework": null,
   "rewrites": [
