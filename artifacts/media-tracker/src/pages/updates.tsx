@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   useGetMediaUpdates,
   useListMedia,
@@ -10,23 +10,50 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BellRing, RefreshCw, CheckCircle, Clock } from "lucide-react";
+import { BellRing, RefreshCw, CheckCircle, Clock, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn, proxyImage } from "@/lib/utils";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 export default function Updates() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [checking, setChecking] = useState<Set<number>>(new Set());
+  const [bulkChecking, setBulkChecking] = useState(false);
+  const hasAutoChecked = useRef(false);
 
   const { data: updatedMedia, isLoading: updatesLoading } = useGetMediaUpdates();
   const { data: libraryMedia, isLoading: libraryLoading } = useListMedia({ listType: "library" });
   const checkUpdate = useCheckMediaUpdate();
 
   const isLoading = updatesLoading || libraryLoading;
-
   const updatedArray = Array.isArray(updatedMedia) ? updatedMedia : [];
   const libraryArray = Array.isArray(libraryMedia) ? libraryMedia : [];
+  const activeReading = libraryArray.filter(
+    (m) => m.status === "reading" || m.status === "watching"
+  );
+  const hasUpdatesSet = new Set(updatedArray.map((m) => m.id));
+
+  // Auto-check all on first load
+  useEffect(() => {
+    if (hasAutoChecked.current || libraryLoading || activeReading.length === 0) return;
+    hasAutoChecked.current = true;
+    runBulkCheck();
+  }, [libraryLoading, activeReading.length]);
+
+  const runBulkCheck = async () => {
+    setBulkChecking(true);
+    try {
+      await fetch(`${API_BASE}/media/check-all-updates`, { method: "POST" });
+      await queryClient.invalidateQueries({ queryKey: getGetMediaUpdatesQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getListMediaQueryKey({ listType: "library" }) });
+    } catch (err) {
+      console.error("Bulk check failed", err);
+    } finally {
+      setBulkChecking(false);
+    }
+  };
 
   const handleCheckUpdate = (id: number, title: string) => {
     setChecking((prev) => new Set([...prev, id]));
@@ -56,21 +83,6 @@ export default function Updates() {
     );
   };
 
-  const handleCheckAll = async () => {
-    const activeItems = libraryArray.filter(
-      (m) => m.status === "reading" || m.status === "watching"
-    );
-    for (const item of activeItems) {
-      handleCheckUpdate(item.id, item.title);
-    }
-  };
-
-  const activeReading = libraryArray.filter(
-    (m) => m.status === "reading" || m.status === "watching"
-  );
-
-  const hasUpdatesSet = new Set(updatedArray.map((m) => m.id));
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -85,15 +97,21 @@ export default function Updates() {
           </div>
           <div>
             <h1 className="text-3xl font-display font-bold">Updates</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">Check for new chapters and episodes</p>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              {bulkChecking ? "Checking for new chapters…" : "Checked automatically when you open this page"}
+            </p>
           </div>
         </div>
-        {activeReading.length > 0 && (
-          <Button variant="outline" className="gap-2" onClick={handleCheckAll} data-testid="check-all-updates">
-            <RefreshCw className="w-4 h-4" />
-            Check All
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={runBulkCheck}
+          disabled={bulkChecking}
+          data-testid="check-all-updates"
+        >
+          <RefreshCw className={cn("w-4 h-4", bulkChecking && "animate-spin")} />
+          {bulkChecking ? "Checking…" : "Refresh All"}
+        </Button>
       </div>
 
       {/* Updates Available */}
@@ -119,7 +137,10 @@ export default function Updates() {
                     <h3 className="font-medium text-sm leading-tight line-clamp-1">{item.title}</h3>
                     <Badge variant="secondary" className="text-[10px] mt-1 capitalize">{item.category}</Badge>
                     {item.currentChapter && (
-                      <p className="text-xs text-muted-foreground mt-1">Current: {item.currentChapter}</p>
+                      <p className="text-xs text-muted-foreground mt-1">You're on: {item.currentChapter}</p>
+                    )}
+                    {(item as any).latestChapter && (
+                      <p className="text-xs text-green-400 font-medium mt-0.5">Latest: {(item as any).latestChapter}</p>
                     )}
                     {item.lastCheckedAt && (
                       <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
@@ -128,6 +149,13 @@ export default function Updates() {
                       </p>
                     )}
                   </div>
+                  {item.readingUrl && (
+                    <a href={item.readingUrl} target="_blank" rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-green-400 hover:text-green-300 font-medium transition-colors">
+                      <ExternalLink className="w-3 h-3" />
+                      Go Read
+                    </a>
+                  )}
                 </div>
               </div>
             ))}
@@ -142,7 +170,7 @@ export default function Updates() {
           <span className="text-foreground font-bold">{activeReading.length}</span>
         </h2>
 
-        {isLoading ? (
+        {isLoading || bulkChecking ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-20 bg-muted animate-pulse rounded-xl" />
@@ -188,18 +216,33 @@ export default function Updates() {
                           <span className="text-[10px] text-muted-foreground">{item.currentChapter}</span>
                         )}
                       </div>
+                      {hasUpdate && (item as any).latestChapter && (
+                        <p className="text-[10px] text-green-400 font-medium mt-0.5">
+                          Latest: {(item as any).latestChapter}
+                        </p>
+                      )}
                     </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className={cn("h-7 px-2 text-xs gap-1.5 self-start mt-1", isChecking && "opacity-60")}
-                      disabled={isChecking}
-                      onClick={() => handleCheckUpdate(item.id, item.title)}
-                      data-testid={`check-update-${item.id}`}
-                    >
-                      <RefreshCw className={cn("w-3 h-3", isChecking && "animate-spin")} />
-                      {isChecking ? "Checking..." : "Check"}
-                    </Button>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className={cn("h-7 px-2 text-xs gap-1.5", isChecking && "opacity-60")}
+                        disabled={isChecking}
+                        onClick={() => handleCheckUpdate(item.id, item.title)}
+                        data-testid={`check-update-${item.id}`}
+                      >
+                        <RefreshCw className={cn("w-3 h-3", isChecking && "animate-spin")} />
+                        {isChecking ? "Checking..." : "Check"}
+                      </Button>
+                      {item.readingUrl && (
+                        <a href={item.readingUrl} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1.5">
+                            <ExternalLink className="w-3 h-3" />
+                            Read
+                          </Button>
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

@@ -42,6 +42,7 @@ function serializeMedia(row: typeof mediaTable.$inferSelect) {
     hasUpdate: row.hasUpdate,
     lastCheckedAt: row.lastCheckedAt?.toISOString() ?? null,
     currentChapter: row.currentChapter ?? null,
+    latestChapter: row.latestChapter ?? null,
     totalChapters: row.totalChapters ?? null,
     addedBy: row.addedBy ?? null,
     readingUrl: row.readingUrl ?? null,
@@ -394,32 +395,69 @@ router.post("/media/:id/check-update", async (req, res): Promise<void> => {
   const checkedAt = new Date();
   let latestChapter: string | null = null;
 
-  // Real lookup based on category
   if (existing.category === "anime") {
     latestChapter = await getLatestEpisodeFromJikan(existing.title);
   } else {
-    // manga, manhwa, webtoon — use MangaDex
     latestChapter = await getLatestChapterFromMangaDex(existing.title);
   }
 
-  // Determine if there's an update by comparing with current chapter
   let hasUpdate = false;
   if (latestChapter && existing.currentChapter) {
-    // Extract numbers to compare
     const latestNum = parseFloat(latestChapter.replace(/[^\d.]/g, "") || "0");
     const currentNum = parseFloat(existing.currentChapter.replace(/[^\d.]/g, "") || "0");
     hasUpdate = latestNum > currentNum;
   } else if (latestChapter && !existing.currentChapter) {
-    // They have no chapter saved but there are chapters available
     hasUpdate = true;
   }
 
-  const [updated] = await db.update(mediaTable)
-    .set({ hasUpdate, lastCheckedAt: checkedAt })
-    .where(eq(mediaTable.id, params.data.id))
-    .returning();
+  await db.update(mediaTable)
+    .set({ hasUpdate, lastCheckedAt: checkedAt, latestChapter })  // ← saves latestChapter
+    .where(eq(mediaTable.id, params.data.id));
 
   res.json(CheckMediaUpdateResponse.parse({ hasUpdate, latestChapter, checkedAt: checkedAt.toISOString() }));
+});
+
+// POST /media/check-all-updates
+// Checks all active (reading/watching) library items in one call.
+// Called automatically when the frontend loads.
+router.post("/media/check-all-updates", async (_req, res): Promise<void> => {
+  const activeItems = await db.select().from(mediaTable).where(
+    and(eq(mediaTable.listType, "library"))
+  );
+
+  const readingItems = activeItems.filter(
+    (item) => item.status === "reading" || item.status === "watching"
+  );
+
+  const results: Array<{ id: number; hasUpdate: boolean; latestChapter: string | null }> = [];
+
+  // Check each item — run sequentially to be polite to external APIs
+  for (const item of readingItems) {
+    let latestChapter: string | null = null;
+
+    if (item.category === "anime") {
+      latestChapter = await getLatestEpisodeFromJikan(item.title);
+    } else {
+      latestChapter = await getLatestChapterFromMangaDex(item.title);
+    }
+
+    let hasUpdate = false;
+    if (latestChapter && item.currentChapter) {
+      const latestNum = parseFloat(latestChapter.replace(/[^\d.]/g, "") || "0");
+      const currentNum = parseFloat(item.currentChapter.replace(/[^\d.]/g, "") || "0");
+      hasUpdate = latestNum > currentNum;
+    } else if (latestChapter && !item.currentChapter) {
+      hasUpdate = true;
+    }
+
+    await db.update(mediaTable)
+      .set({ hasUpdate, lastCheckedAt: new Date(), latestChapter })
+      .where(eq(mediaTable.id, item.id));
+
+    results.push({ id: item.id, hasUpdate, latestChapter });
+  }
+
+  res.json({ checked: results.length, results });
 });
 
 export default router;

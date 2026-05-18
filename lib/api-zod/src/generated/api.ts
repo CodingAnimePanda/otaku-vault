@@ -56,6 +56,7 @@ export const ListMediaResponseItem = zod.object({
   hasUpdate: zod.boolean(),
   lastCheckedAt: zod.string().nullish(),
   currentChapter: zod.string().nullish(),
+  latestChapter: zod.string().nullish(),   // ← ADDED
   totalChapters: zod.string().nullish(),
   addedBy: zod.string().nullish(),
   readingUrl: zod.string().nullish(),
@@ -148,6 +149,7 @@ export const GetMediaUpdatesResponseItem = zod.object({
   hasUpdate: zod.boolean(),
   lastCheckedAt: zod.string().nullish(),
   currentChapter: zod.string().nullish(),
+  latestChapter: zod.string().nullish(),   // ← ADDED
   totalChapters: zod.string().nullish(),
   addedBy: zod.string().nullish(),
   readingUrl: zod.string().nullish(),
@@ -203,6 +205,7 @@ export const GetMediaResponse = zod.object({
   hasUpdate: zod.boolean(),
   lastCheckedAt: zod.string().nullish(),
   currentChapter: zod.string().nullish(),
+  latestChapter: zod.string().nullish(),   // ← ADDED
   totalChapters: zod.string().nullish(),
   addedBy: zod.string().nullish(),
   readingUrl: zod.string().nullish(),
