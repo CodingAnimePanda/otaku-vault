@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import {
   Plus, BookOpen, Tv, Sparkles, PlayCircle, Clock,
   Search, ExternalLink, Pencil, XCircle, AlertTriangle,
+  Heart, ChevronDown, ChevronRight, Star,
 } from "lucide-react";
 import { AddMediaDialog } from "@/components/add-media-dialog";
 import { EditMediaDialog } from "@/components/edit-media-dialog";
@@ -58,6 +59,109 @@ function getSiteLabel(url: string | null | undefined): string {
   try { return new URL(url).hostname.replace("www.", ""); } catch { return "Read Now"; }
 }
 
+// ── Favorites localStorage helpers ────────────────────────────────────────────
+function loadFavorites(): Set<number> {
+  try {
+    const stored = localStorage.getItem("ov_favorites");
+    if (stored) return new Set(JSON.parse(stored));
+  } catch {}
+  return new Set();
+}
+function saveFavorites(favs: Set<number>) {
+  try { localStorage.setItem("ov_favorites", JSON.stringify([...favs])); } catch {}
+}
+
+// ── Drop reasons localStorage helpers ─────────────────────────────────────────
+function loadDropReasons(): Record<number, string> {
+  try {
+    const stored = localStorage.getItem("ov_drop_reasons");
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return {};
+}
+function saveDropReasons(reasons: Record<number, string>) {
+  try { localStorage.setItem("ov_drop_reasons", JSON.stringify(reasons)); } catch {}
+}
+
+// ── Collapsible Section ───────────────────────────────────────────────────────
+function CollapsibleSection({
+  title, icon, count, color, defaultOpen = false, children,
+}: {
+  title: string; icon: React.ReactNode; count: number;
+  color: string; defaultOpen?: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="space-y-3">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 w-full text-left group"
+      >
+        <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0", color)}>
+          {icon}
+        </div>
+        <h2 className="text-base font-display font-semibold">{title}</h2>
+        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{count}</span>
+        <div className="ml-auto text-muted-foreground group-hover:text-foreground transition-colors">
+          {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </div>
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
+// ── Small Media Card ──────────────────────────────────────────────────────────
+function SmallMediaCard({
+  item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite, dropReason,
+}: {
+  item: any; onEdit: () => void; onDrop: () => void; onAvoid: () => void;
+  onToggleFavorite: () => void; isFavorite: boolean; dropReason?: string;
+}) {
+  return (
+    <div className="group relative flex gap-2.5 p-2.5 rounded-xl bg-card border border-border hover:border-primary/20 transition-all">
+      <div className="w-10 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
+        {item.coverUrl || item.customCoverUrl ? (
+          <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <BookOpen className="w-4 h-4 text-muted-foreground/30" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start gap-1">
+          <h4 className="text-xs font-medium leading-tight line-clamp-1 flex-1">{item.title}</h4>
+          <button onClick={onToggleFavorite} className="flex-shrink-0 mt-0.5">
+            <Heart className={cn("w-3 h-3 transition-colors", isFavorite ? "fill-rose-400 text-rose-400" : "text-muted-foreground hover:text-rose-400")} />
+          </button>
+        </div>
+        <p className={cn("text-[10px] capitalize mt-0.5", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>
+          {item.category}
+        </p>
+        {item.currentChapter && (
+          <p className="text-[10px] text-muted-foreground mt-0.5">{item.currentChapter}</p>
+        )}
+        {dropReason && (
+          <p className="text-[10px] text-red-400/80 mt-0.5 italic line-clamp-1">"{dropReason}"</p>
+        )}
+        <div className="flex items-center gap-1 mt-1.5">
+          <button onClick={onEdit} className="text-[9px] text-muted-foreground hover:text-primary flex items-center gap-0.5 transition-colors">
+            <Pencil className="w-2.5 h-2.5" /> Edit
+          </button>
+          {(item as any).readingUrl && (
+            <a href={(item as any).readingUrl} target="_blank" rel="noopener noreferrer"
+              className="text-[9px] text-muted-foreground hover:text-primary flex items-center gap-0.5 transition-colors ml-1">
+              <ExternalLink className="w-2.5 h-2.5" /> Read
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any | null>(null);
@@ -65,6 +169,9 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const [favorites, setFavorites] = useState<Set<number>>(loadFavorites);
+  const [dropReasons, setDropReasons] = useState<Record<number, string>>(loadDropReasons);
 
   const { data: stats } = useGetMediaStats();
   const { data: media, isLoading: mediaLoading } = useListMedia({ listType: "library" });
@@ -95,6 +202,18 @@ export default function Dashboard() {
     );
   }, [mediaArray, searchQuery]);
 
+  // Grouped sections
+  const favoriteItems = useMemo(() =>
+    mediaArray.filter((m) => favorites.has(m.id) || m.tier === "S"), [mediaArray, favorites]);
+  const readingItems = useMemo(() =>
+    mediaArray.filter((m) => m.status === "reading" || m.status === "watching"), [mediaArray]);
+  const onHoldItems = useMemo(() =>
+    mediaArray.filter((m) => m.status === "paused"), [mediaArray]);
+  const completedItems = useMemo(() =>
+    mediaArray.filter((m) => m.status === "completed"), [mediaArray]);
+  const droppedItems = useMemo(() =>
+    mediaArray.filter((m) => m.status === "dropped"), [mediaArray]);
+
   const featured = continueItems[0];
   const restContinue = continueItems.slice(1);
 
@@ -117,7 +236,33 @@ export default function Dashboard() {
     });
   };
 
+  const handleToggleFavorite = (id: number) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      saveFavorites(next);
+      return next;
+    });
+  };
+
   const totalItems = Object.values(stats?.totalByCategory ?? {}).reduce((a, b) => a + b, 0);
+
+  const sectionCardGrid = (items: any[]) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
+      {items.map((item) => (
+        <SmallMediaCard
+          key={item.id}
+          item={item}
+          onEdit={() => setEditItem(item)}
+          onDrop={() => handleDrop(item.id, item.title)}
+          onAvoid={() => handleMoveToAvoid(item.id, item.title)}
+          onToggleFavorite={() => handleToggleFavorite(item.id)}
+          isFavorite={favorites.has(item.id)}
+          dropReason={dropReasons[item.id]}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-8">
@@ -159,13 +304,6 @@ export default function Dashboard() {
       {/* Quick stats */}
       {stats && (
         <div className="flex gap-3 flex-wrap">
-          {stats.updatesAvailable > 0 && (
-            <button onClick={() => setLocation("/updates")}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-green-400 hover:bg-green-500/15 transition-colors">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              {stats.updatesAvailable} update{stats.updatesAvailable !== 1 ? "s" : ""} available
-            </button>
-          )}
           {stats.toReadCount > 0 && (
             <button onClick={() => setLocation("/to-read")}
               className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-blue-400 hover:bg-blue-500/15 transition-colors">
@@ -223,7 +361,7 @@ export default function Dashboard() {
                         {featured.status === "paused" ? "Pick Back Up" : "Continue"}
                       </a>
                     ) : (
-                      <Button size="sm" className="flex-1 gap-1.5 h-8 text-xs" onClick={() => {}}>
+                      <Button size="sm" className="flex-1 gap-1.5 h-8 text-xs">
                         <PlayCircle className="w-3.5 h-3.5" />
                         {featured.status === "paused" ? "Pick Back Up" : "Continue"}
                       </Button>
@@ -268,8 +406,50 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ── Collapsible Sections ── */}
+      <div className="space-y-5 border-t border-border pt-6">
+        <h2 className="text-lg font-display font-semibold">Browse by Status</h2>
+
+        {favoriteItems.length > 0 && (
+          <CollapsibleSection title="Favorites" icon={<Heart className="w-4 h-4 text-rose-400" />}
+            count={favoriteItems.length} color="bg-rose-500/10" defaultOpen>
+            <div className="space-y-2">
+              {sectionCardGrid(favoriteItems)}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {readingItems.length > 0 && (
+          <CollapsibleSection title="Reading / Watching" icon={<PlayCircle className="w-4 h-4 text-green-400" />}
+            count={readingItems.length} color="bg-green-500/10" defaultOpen>
+            {sectionCardGrid(readingItems)}
+          </CollapsibleSection>
+        )}
+
+        {onHoldItems.length > 0 && (
+          <CollapsibleSection title="On Hold" icon={<Clock className="w-4 h-4 text-yellow-400" />}
+            count={onHoldItems.length} color="bg-yellow-500/10">
+            {sectionCardGrid(onHoldItems)}
+          </CollapsibleSection>
+        )}
+
+        {completedItems.length > 0 && (
+          <CollapsibleSection title="Completed" icon={<Star className="w-4 h-4 text-primary" />}
+            count={completedItems.length} color="bg-primary/10">
+            {sectionCardGrid(completedItems)}
+          </CollapsibleSection>
+        )}
+
+        {droppedItems.length > 0 && (
+          <CollapsibleSection title="Dropped" icon={<XCircle className="w-4 h-4 text-red-400" />}
+            count={droppedItems.length} color="bg-red-500/10">
+            {sectionCardGrid(droppedItems)}
+          </CollapsibleSection>
+        )}
+      </div>
+
       {/* All Media */}
-      <div>
+      <div className="border-t border-border pt-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-display font-semibold">All Media</h2>
           <Button variant="ghost" size="sm" className="gap-2 text-xs text-muted-foreground"
@@ -313,7 +493,6 @@ export default function Dashboard() {
                         <span className="text-muted-foreground">{item.title}</span>
                       </div>
                     )}
-                    {/* Hover overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 gap-1.5">
                       {item.status && (
                         <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded self-start", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>
@@ -328,11 +507,17 @@ export default function Dashboard() {
                           <ExternalLink className="w-3 h-3" /> {getSiteLabel((item as any).readingUrl)}
                         </a>
                       )}
-                      {/* Action buttons */}
                       <div className="flex gap-1 mt-0.5">
                         <button onClick={() => setEditItem(item)}
                           className="flex-1 flex items-center justify-center gap-1 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white text-[10px] transition-colors">
                           <Pencil className="w-2.5 h-2.5" /> Edit
+                        </button>
+                        <button onClick={() => handleToggleFavorite(item.id)}
+                          className={cn("flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] transition-colors",
+                            favorites.has(item.id)
+                              ? "bg-rose-500/40 text-rose-200"
+                              : "bg-white/10 hover:bg-rose-500/30 text-white hover:text-rose-200")}>
+                          <Heart className={cn("w-2.5 h-2.5", favorites.has(item.id) && "fill-rose-200")} />
                         </button>
                         <button onClick={() => handleDrop(item.id, item.title)}
                           className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 text-[10px] transition-colors">
@@ -344,10 +529,14 @@ export default function Dashboard() {
                         </button>
                       </div>
                     </div>
-                    {item.hasUpdate && <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-green-400 shadow-lg shadow-green-400/50" />}
                     {item.tier && (
                       <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center">
                         <span className="text-xs font-display font-black text-yellow-400">{item.tier}</span>
+                      </div>
+                    )}
+                    {favorites.has(item.id) && (
+                      <div className="absolute top-2 left-2">
+                        <Heart className="w-3.5 h-3.5 fill-rose-400 text-rose-400 drop-shadow" />
                       </div>
                     )}
                   </div>
@@ -394,7 +583,21 @@ export default function Dashboard() {
       </div>
 
       <AddMediaDialog open={addOpen} onClose={() => setAddOpen(false)} />
-      <EditMediaDialog open={!!editItem} onClose={() => setEditItem(null)} media={editItem} />
+      <EditMediaDialog
+        open={!!editItem}
+        onClose={() => setEditItem(null)}
+        media={editItem}
+        favorites={favorites}
+        onToggleFavorite={handleToggleFavorite}
+        dropReasons={dropReasons}
+        onSaveDropReason={(id, reason) => {
+          setDropReasons((prev) => {
+            const next = { ...prev, [id]: reason };
+            saveDropReasons(next);
+            return next;
+          });
+        }}
+      />
     </div>
   );
 }

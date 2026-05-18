@@ -34,13 +34,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ExternalLink, Link, Pencil } from "lucide-react";
+import { Loader2, ExternalLink, Link, Pencil, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
 const LIST_TYPES = ["library", "to_read", "avoid"] as const;
 
-// Quick-pick reading sites loaded from localStorage
 interface ReadingSite { label: string; url: string; emoji: string; }
 const DEFAULT_SITES: ReadingSite[] = [
   { label: "Webtoon",   url: "https://www.webtoons.com", emoji: "📱" },
@@ -83,28 +82,32 @@ interface Props {
   open: boolean;
   onClose: () => void;
   media: MediaItem | null;
+  favorites?: Set<number>;
+  onToggleFavorite?: (id: number) => void;
+  dropReasons?: Record<number, string>;
+  onSaveDropReason?: (id: number, reason: string) => void;
 }
 
-export function EditMediaDialog({ open, onClose, media }: Props) {
+export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavorite, dropReasons, onSaveDropReason }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateMedia = useUpdateMedia();
   const readingSites = loadSites();
+  const [dropReason, setDropReason] = useState("");
+
+  const isFavorite = media ? (favorites?.has(media.id) ?? false) : false;
+  const watchedStatus = useForm<FormValues>().watch;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      title: "",
-      status: undefined,
-      listType: "library",
-      currentChapter: "",
-      notes: "",
-      coverUrl: "",
-      readingUrl: "",
+      title: "", status: undefined, listType: "library",
+      currentChapter: "", notes: "", coverUrl: "", readingUrl: "",
     },
   });
 
-  // Populate form when media changes
+  const currentStatus = form.watch("status");
+
   useEffect(() => {
     if (media && open) {
       form.reset({
@@ -116,17 +119,20 @@ export function EditMediaDialog({ open, onClose, media }: Props) {
         coverUrl: media.coverUrl ?? "",
         readingUrl: (media as any).readingUrl ?? "",
       });
+      setDropReason(dropReasons?.[media.id] ?? "");
     }
   }, [media, open]);
 
-  useEffect(() => {
-    if (!open) form.reset();
-  }, [open]);
+  useEffect(() => { if (!open) form.reset(); }, [open]);
 
   const watchedReadingUrl = form.watch("readingUrl");
 
   const onSubmit = (values: FormValues) => {
     if (!media) return;
+    // Save drop reason if status is dropped
+    if (values.status === "dropped" && onSaveDropReason) {
+      onSaveDropReason(media.id, dropReason);
+    }
     updateMedia.mutate(
       {
         id: media.id,
@@ -165,6 +171,21 @@ export function EditMediaDialog({ open, onClose, media }: Props) {
             Edit Title
           </DialogTitle>
         </DialogHeader>
+
+        {/* Favorite toggle */}
+        <button
+          type="button"
+          onClick={() => onToggleFavorite?.(media.id)}
+          className={cn(
+            "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all w-full",
+            isFavorite
+              ? "bg-rose-500/10 border-rose-500/30 text-rose-400"
+              : "bg-card border-border text-muted-foreground hover:text-rose-400 hover:border-rose-500/30"
+          )}
+        >
+          <Heart className={cn("w-4 h-4", isFavorite && "fill-rose-400")} />
+          {isFavorite ? "Saved as Favorite" : "Mark as Favorite"}
+        </button>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -205,6 +226,20 @@ export function EditMediaDialog({ open, onClose, media }: Props) {
                 </FormItem>
               )} />
             </div>
+
+            {/* Drop reason — only shown when status is dropped */}
+            {currentStatus === "dropped" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-red-400">Drop Reason (optional)</label>
+                <Textarea
+                  placeholder="Why did you drop this? e.g. Lost interest after chapter 30, art style changed..."
+                  value={dropReason}
+                  onChange={(e) => setDropReason(e.target.value)}
+                  rows={2}
+                  className="resize-none text-sm border-red-500/20 focus:border-red-500/40"
+                />
+              </div>
+            )}
 
             <FormField control={form.control} name="currentChapter" render={({ field }) => (
               <FormItem>

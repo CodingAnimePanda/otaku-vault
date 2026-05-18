@@ -24,6 +24,7 @@ export const mediaTable = pgTable("media", {
   hasUpdate: boolean("has_update").notNull().default(false),
   lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
   currentChapter: text("current_chapter"),
+  latestChapter: text("latest_chapter"),
   totalChapters: text("total_chapters"),
   addedBy: text("added_by"),
   readingUrl: text("reading_url"), // link to reading site

@@ -2,27 +2,10 @@ services:
   - type: web
     name: otakuvault-api
     runtime: node
-    rootDir: artifacts/api-server
-    buildCommand: cd ../.. && npm install -g pnpm && pnpm install && pnpm -r --filter "./artifacts/api-server" run build
-    startCommand: node --enable-source-maps ./dist/index.mjs
+    buildCommand: npm install -g pnpm && pnpm install && pnpm --filter ./artifacts/api-server run build
+    startCommand: pnpm --filter ./artifacts/api-server run start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3001
       - key: DATABASE_URL
         sync: false
-
-  - type: web
-    name: otakuvault-frontend
-    runtime: node
-    rootDir: artifacts/media-tracker
-    buildCommand: cd ../.. && npm install -g pnpm && pnpm install && pnpm -r --filter "./artifacts/media-tracker" run build
-    startCommand: npx serve -s dist/public -l 4173
-    envVars:
-      - key: PORT
-        value: 4173
-      - key: BASE_PATH
-        value: /
-      - key: VITE_API_URL
-        value: https://otakuvault-api.onrender.com
