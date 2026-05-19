@@ -249,7 +249,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <Settings className="w-3.5 h-3.5" />
           Manage Reading Sites
         </button>
-        <UserButton />
+        <UserAccountButton />
       </div>
     </>
   );
