@@ -31,14 +31,14 @@ function ProtectedRouter() {
   }
 
   // Auth pages — show centered card
-  if (location === "/sign-in" || location === "/sign-up") {
+ if (location === "/sign-in" || location.startsWith("/sign-in") || location === "/sign-up" || location.startsWith("/sign-up")) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        {location === "/sign-in" ? (
-          <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" />
-        ) : (
-          <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" />
-        )}
+        {location.startsWith("/sign-in") ? (
+          <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" afterSignInUrl="/" />
+       ) : (
+         <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" afterSignUpUrl="/" />
+       )}
       </div>
     );
   }
