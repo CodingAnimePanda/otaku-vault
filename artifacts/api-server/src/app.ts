@@ -22,10 +22,19 @@ app.use(
 );
 
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://otaku-vault-media-tracker.vercel.app",
-  ],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    // Allow any vercel.app subdomain and localhost
+    if (
+      origin.includes("vercel.app") ||
+      origin.includes("localhost") ||
+      origin.includes("127.0.0.1")
+    ) {
+      return callback(null, true);
+    }
+    callback(new Error("Not allowed by CORS"));
+  },
   credentials: true,
 }));
 
