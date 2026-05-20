@@ -6,6 +6,7 @@ import {
   Menu, BookOpen, Heart, Lock, X, Plus, Trash2, Globe,
   Settings, Tv, Clapperboard, Sparkles, Quote, LogOut,
   Palette, Camera, Upload,
+import { Users } from "lucide-react";
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -363,12 +364,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const [friendBadge, setFriendBadge] = useState(0);
+
+useEffect(() => {
+  const fetchBadge = async () => {
+    try {
+      const res = await apiRequest("/api/friends/notifications/count");
+      if (res.ok) {
+        const data = await res.json();
+        setFriendBadge(data.total ?? 0);
+      }
+    } catch {}
+  };
+  if (user?.id) {
+    fetchBadge();
+    const interval = setInterval(fetchBadge, 60_000);
+    return () => clearInterval(interval);
+  }
+}, [user?.id]);
+
   const mainNavItems = [
     { href: "/", label: "Library", icon: Library },
     { href: "/tierlist/webtoon", label: "Tier Lists", icon: LayoutList },
     { href: "/recommended", label: "Recommended", icon: Star },
     { href: "/to-read", label: "To Read", icon: ListPlus },
     { href: "/to-watch", label: "To Watch", icon: Tv },
+    { href: "/friends", label: "Friends", icon: Users },
     { href: "/avoid", label: "Avoid", icon: AlertTriangle, className: "text-destructive" },
   ];
 
@@ -380,20 +401,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) =>
     href === "/" ? location === "/" : location.startsWith(href);
 
-  const NavLink = ({ href, label, icon: Icon, className }: { href: string; label: string; icon: any; className?: string }) => (
-    <Link href={href}
-      className={cn(
-        "flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors group",
-        isActive(href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent/50",
-        className
-      )}>
-      <Icon className={cn("w-5 h-5 mr-3 flex-shrink-0 transition-colors",
-        isActive(href) ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
-        className
-      )} />
-      {label}
-    </Link>
-  );
+  const NavLink = ({ href, label, icon: Icon, className, badge }: {
+  href: string; label: string; icon: any; className?: string; badge?: number;
+}) => (
+  <Link href={href}
+    className={cn(
+      "flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors group",
+      isActive(href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent/50",
+      className
+    )}>
+    <Icon className={cn("w-5 h-5 mr-3 flex-shrink-0 transition-colors",
+      isActive(href) ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+      className
+    )} />
+    {label}
+    {badge ? (
+      <span className="ml-auto bg-primary text-primary-foreground text-[10px] rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center leading-none">
+        {badge}
+      </span>
+    ) : null}
+  </Link>
+);
 
   const SidebarContent = () => (
     <>
@@ -404,7 +432,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </button>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {mainNavItems.map((item) => <NavLink key={item.href} {...item} />)}
+        {mainNavItems.map((item) => (
+          <NavLink key={item.href} {...item} badge={item.href === "/friends" ? (friendBadge || undefined) : undefined} />
+        ))}
 
         {blUnlocked && (
           <Link href="/bl-vault"

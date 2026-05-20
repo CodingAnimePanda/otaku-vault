@@ -15,6 +15,10 @@ import BLVault from "@/pages/bl-vault";
 import NormiePage from "@/pages/normie";
 import MomentsPage from "@/pages/moments";
 import QuotesPage from "@/pages/quotes";
+import FriendsPage from "@/pages/friends";
+
+// inside the Layout <Switch>:
+<Route path="/friends" component={FriendsPage} />
 
 const queryClient = new QueryClient();
 
