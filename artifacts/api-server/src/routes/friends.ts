@@ -48,11 +48,18 @@ router.post("/friends/profile", async (req, res): Promise<void> => {
 });
 
 // GET /friends/profile/me — get your own profile
+// Replace your existing GET /friends/profile/me with this:
 router.get("/friends/profile/me", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  
   const [profile] = await db.select().from(usersTable).where(eq(usersTable.clerkId, userId));
-  if (!profile) { res.status(404).json({ error: "Profile not found" }); return; }
+  
+  // Instead of 404, return 200 with null so the frontend can handle the "empty" state
+  if (!profile) { 
+    res.status(200).json(null); 
+    return; 
+  }
   res.json(profile);
 });
 

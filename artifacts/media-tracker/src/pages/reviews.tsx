@@ -1,10 +1,12 @@
-// artifacts/media-tracker/src/pages/reviews.tsx
-import React from "react";
+import React, { useState } from "react";
 import { useListMedia } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, MessageSquare } from "lucide-react";
+import { Star, MessageSquare, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EditMediaDialog } from "../components/edit-media-dialog";
 
 export default function ReviewsPage() {
+  const [editingMedia, setEditingMedia] = useState<any>(null);
   const { data: media } = useListMedia({ listType: "library" });
   const reviewed = (media || []).filter(m => (m as any).reviewText || (m as any).rating > 0);
 
@@ -21,7 +23,12 @@ export default function ReviewsPage() {
                 {item.coverUrl && <img src={item.coverUrl} className="w-full h-full object-cover" />}
               </div>
               <div className="flex-1">
-                <h2 className="font-bold text-lg">{item.title}</h2>
+                <div className="flex justify-between items-start">
+                  <h2 className="font-bold text-lg">{item.title}</h2>
+                  <Button variant="ghost" size="sm" onClick={() => setEditingMedia(item)}>
+                    <Pencil className="w-4 h-4 mr-2" /> Edit
+                  </Button>
+                </div>
                 <div className="flex items-center gap-4 text-sm mt-1">
                   <div className="flex items-center gap-1 text-yellow-500">
                     <Star className="w-4 h-4 fill-current" />
@@ -37,6 +44,12 @@ export default function ReviewsPage() {
           </Card>
         ))}
       </div>
+
+      <EditMediaDialog 
+        open={!!editingMedia} 
+        onClose={() => setEditingMedia(null)} 
+        media={editingMedia} 
+      />
     </div>
   );
 }
