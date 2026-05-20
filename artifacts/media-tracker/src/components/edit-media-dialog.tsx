@@ -75,6 +75,7 @@ const schema = z.object({
   notes: z.string().optional(),
   coverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   readingUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  reviewText: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -290,6 +291,15 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                 />
               </div>
             )}
+
+            <FormField control={form.control} name="reviewText" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Your Review</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="What did you think of the media?" className="resize-none text-sm" rows={3} {...field} />
+                </FormControl>
+              </FormItem>
+            )} />
 
             <FormField control={form.control} name="readingUrl" render={({ field }) => (
               <FormItem>

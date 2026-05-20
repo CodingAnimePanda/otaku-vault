@@ -16,6 +16,7 @@ import NormiePage from "@/pages/normie";
 import MomentsPage from "@/pages/moments";
 import QuotesPage from "@/pages/quotes";
 import FriendsPage from "@/pages/friends";
+import ReviewsPage from "@/pages/reviews";
 
 const queryClient = new QueryClient();
 
@@ -74,6 +75,7 @@ function ProtectedRouter() {
         <Route path="/moments" component={MomentsPage} />
         <Route path="/quotes" component={QuotesPage} />
         <Route path="/friends" component={FriendsPage} />
+        <Route path="/reviews" component={ReviewsPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

@@ -397,6 +397,7 @@ useEffect(() => {
     { href: "/to-watch", label: "To Watch", icon: Tv },
     { href: "/friends", label: "Friends", icon: Users },
     { href: "/avoid", label: "Avoid", icon: AlertTriangle, className: "text-destructive" },
+    { href: "/reviews", label: "Reviews", icon: MessageSquare },
   ];
 
   const extraNavItems = [

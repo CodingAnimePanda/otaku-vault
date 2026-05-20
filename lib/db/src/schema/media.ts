@@ -36,6 +36,7 @@ export const mediaTable = pgTable("media", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
+  reviewText: text("review_text"),
 });
 
 export const insertMediaSchema = createInsertSchema(mediaTable).omit({
