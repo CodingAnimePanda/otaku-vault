@@ -85,6 +85,31 @@ async function getLatestEpisodeFromJikan(title: string): Promise<string | null> 
   }
 }
 
+// GET /media/stats
+router.get("/media/stats", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const all = await db.select().from(mediaTable).where(eq(mediaTable.userId, userId));
+  
+  const totalByCategory: Record<string, number> = {};
+  const completedByCategory: Record<string, number> = {};
+  
+  all.forEach(m => {
+    totalByCategory[m.category] = (totalByCategory[m.category] || 0) + 1;
+    if (m.status === 'completed') {
+      completedByCategory[m.category] = (completedByCategory[m.category] || 0) + 1;
+    }
+  });
+
+  res.json({
+    totalByCategory,
+    completedByCategory,
+    toReadCount: all.filter(m => m.listType === 'to_read').length,
+    avoidCount: all.filter(m => m.listType === 'avoid').length
+  });
+});
+
 // GET /media
 router.get("/media", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
