@@ -283,9 +283,9 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
 
             {watchedStatus === "dropped" && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <FormLabel className="text-red-400 flex items-center gap-1.5 mb-1.5">
+                <label className="text-sm font-medium leading-none text-red-400 flex items-center gap-1.5 mb-1.5">
                   Drop Reason <span className="text-xs text-muted-foreground font-normal">(optional)</span>
-                </FormLabel>
+                </label>
                 <Textarea
                   placeholder="Why did you drop this?"
                   className="resize-none text-sm border-red-500/20 focus-visible:ring-red-500/30"
