@@ -40,6 +40,13 @@ packages:
   - lib/integrations/*
   - scripts
 
+onlyBuiltDependencies:
+  - '@clerk/shared'
+  - esbuild
+  - '@tailwindcss/oxide'
+  - lightningcss
+  - rollup
+  
 catalog:
   '@replit/vite-plugin-cartographer': ^0.5.5
   '@replit/vite-plugin-dev-banner': ^0.1.2

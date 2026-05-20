@@ -1,3 +1,4 @@
+// artifacts/media-tracker/src/components/add-media-dialog.tsx
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,7 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Search, Check, Loader2, ExternalLink, Link } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const CATEGORIES = ["webtoon", "manhwa", "manga", "anime"] as const;
+const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime"] as const;
 const LIST_TYPES = ["library", "to_read", "avoid", "bl"] as const;
 const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
 
@@ -55,7 +56,6 @@ const schema = z.object({
   status: z.enum(STATUSES).optional(),
   notes: z.string().optional(),
   addedBy: z.string().optional(),
-  currentChapter: z.string().optional(),
   customCoverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   readingUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
@@ -83,7 +83,6 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
       status: undefined,
       notes: "",
       addedBy: "",
-      currentChapter: "",
       customCoverUrl: "",
       readingUrl: "",
     },
@@ -93,10 +92,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
   const watchedCategory = form.watch("category");
   const watchedReadingUrl = form.watch("readingUrl");
 
-  const searchParams = coverSearch
-    ? { title: coverSearch.title, category: coverSearch.category as typeof CATEGORIES[number] }
-    : { title: "", category: "manhwa" as const };
-
+  const searchParams = coverSearch ? { title: coverSearch.title, category: coverSearch.category as typeof CATEGORIES[number] } : { title: "", category: "manhwa" as const };
   const { data: coverResults, isFetching: coverFetching } = useSearchCover(
     searchParams,
     {
@@ -109,271 +105,163 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
 
   const createMedia = useCreateMedia();
 
-  const handleSearchCover = () => {
-    if (watchedTitle) {
-      setCoverSearch({ title: watchedTitle, category: watchedCategory });
-      setSelectedCover(null);
-    }
-  };
-
   useEffect(() => {
-    if (!open) {
-      form.reset();
+    if (open) {
+      form.reset({ title: "", category: "manhwa", listType: defaultListType, status: undefined, notes: "", addedBy: "", customCoverUrl: "", readingUrl: "" });
       setSelectedCover(null);
       setCoverSearch(null);
     }
-  }, [open]);
+  }, [open, form, defaultListType]);
 
   const onSubmit = (values: FormValues) => {
-    const coverUrl = selectedCover || (values.customCoverUrl || null);
     createMedia.mutate(
-      {
-        data: {
-          title: values.title,
-          category: values.category,
-          listType: values.listType,
-          status: values.status ?? null,
-          coverUrl,
-          genres: [],
-          notes: values.notes || null,
-          addedBy: values.addedBy || null,
-          currentChapter: values.currentChapter || null,
-          readingUrl: values.readingUrl || null,
-        } as any,
-      },
+      { data: { ...values, coverUrl: selectedCover || values.customCoverUrl || null } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetMediaStatsQueryKey() });
-          toast({ title: "Added!", description: `${values.title} has been added to your ${values.listType.replace("_", " ")}.` });
+          toast({ title: "Added!", description: `${values.title} has been added.` });
           onClose();
         },
         onError: () => {
-          toast({ title: "Error", description: "Failed to add media. Please try again.", variant: "destructive" });
+          toast({ title: "Error", description: "Failed to add. Please try again.", variant: "destructive" });
         },
       }
     );
   };
 
-  const listType = form.watch("listType");
-  const showStatus = listType === "library";
-  const showAddedBy = listType === "to_read" || listType === "avoid";
+  const isNormie = form.watch("listType") === "normie_tv" || form.watch("listType") === "normie_movie";
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">Add New Title</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem className="col-span-2">
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Solo Leveling" {...field} data-testid="input-title" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField control={form.control} name="title" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Title *</FormLabel>
+                <FormControl><Input placeholder="e.g. Omniscient Reader" {...field} data-testid="input-title" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-category"><SelectValue /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {CATEGORIES.map((c) => (
-                          <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="listType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Add to</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-list-type"><SelectValue /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="library">Library</SelectItem>
-                        <SelectItem value="to_read">To-Read</SelectItem>
-                        <SelectItem value="avoid">Avoid List</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {showStatus && (
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-status">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {STATUSES.map((s) => (
-                            <SelectItem key={s} value={s} className="capitalize">
-                              {s.replace(/_/g, " ")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {showAddedBy && (
-                <FormField
-                  control={form.control}
-                  name="addedBy"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>{listType === "avoid" ? "Warned by" : "Recommended by"}</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Friend's name" {...field} data-testid="input-added-by" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {showStatus && (
-                <FormField
-                  control={form.control}
-                  name="currentChapter"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Current Chapter/Episode</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Chapter 45 or S2 Ep7" {...field} data-testid="input-chapter" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="category" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="listType" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>List</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {LIST_TYPES.map((type) => (
+                        <SelectItem key={type} value={type} className="capitalize">{type.replace("_", " ")}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
 
-            {/* ── Reading Link ── */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Link className="w-3.5 h-3.5 text-muted-foreground" />
-                <p className="text-sm font-medium">Reading Link</p>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {READING_SITES.map((site) => {
-                  const isActive = watchedReadingUrl?.startsWith(site.url);
-                  return (
-                    <button
-                      key={site.label}
-                      type="button"
-                      onClick={() => form.setValue("readingUrl", site.url)}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
-                        isActive ? site.color + " ring-1 ring-current" : site.color
-                      )}
-                    >
-                      <span>{site.emoji}</span>
-                      {site.label}
-                      {isActive && <Check className="w-3 h-3 ml-0.5" />}
-                    </button>
-                  );
-                })}
-              </div>
-              <FormField
-                control={form.control}
-                name="readingUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <div className="relative">
-                        <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                        <Input
-                          placeholder="https://... or paste a direct chapter link"
-                          {...field}
-                          className="pl-9 text-xs"
-                          data-testid="input-reading-url"
-                        />
+            <FormField control={form.control} name="status" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || ""}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-muted-foreground italic">None</SelectItem>
+                    {STATUSES.map((status) => (
+                      <SelectItem key={status} value={status} className="capitalize">{status.replace("_", " ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            {!isNormie && (
+              <FormField control={form.control} name="readingUrl" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reading / Watching Link</FormLabel>
+                  <FormControl>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input placeholder="https://..." {...field} className="flex-1 text-xs" />
+                        {watchedReadingUrl && (
+                          <a href={watchedReadingUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center justify-center w-9 flex-shrink-0 bg-muted hover:bg-muted/80 rounded-md border border-border transition-colors">
+                            <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                          </a>
+                        )}
                       </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {watchedReadingUrl && (
-                <a href={watchedReadingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
-                  <ExternalLink className="w-3 h-3" />
-                  Test link
-                </a>
-              )}
-            </div>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {READING_SITES.map((site) => (
+                          <div key={site.label} className="flex group">
+                            <button type="button" onClick={() => form.setValue("readingUrl", site.url)}
+                              className={cn("text-[10px] px-2 py-1 rounded-l-md border border-r-0 transition-colors flex items-center gap-1", site.color)}>
+                              <span>{site.emoji}</span> {site.label}
+                            </button>
+                            <button type="button" disabled={!watchedTitle}
+                              onClick={() => {
+                                const searchUrl = site.url.includes("mangafire") 
+                                  ? `https://mangafire.to/filter?keyword=${encodeURIComponent(watchedTitle)}`
+                                  : site.url.includes("vymanga")
+                                  ? `https://vymanga.net/search?q=${encodeURIComponent(watchedTitle)}`
+                                  : `https://www.webtoons.com/en/search?keyword=${encodeURIComponent(watchedTitle)}`;
+                                window.open(searchUrl, "_blank");
+                              }}
+                              className={cn("text-[10px] px-1.5 py-1 rounded-r-md border transition-colors flex items-center justify-center", 
+                                site.color, "hover:bg-foreground/5 disabled:opacity-50 disabled:cursor-not-allowed")}>
+                              <Search className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            )}
 
-            {/* ── Cover search ── */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Cover Image</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 h-8"
-                  onClick={handleSearchCover}
-                  disabled={!watchedTitle || coverFetching}
-                  data-testid="button-search-cover"
-                >
-                  {coverFetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
-                  Search Covers
+            <div className="pt-2 border-t border-border/50">
+              <div className="flex items-center justify-between mb-2">
+                <FormLabel>Cover Image</FormLabel>
+                <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
+                  onClick={() => setCoverSearch({ title: watchedTitle, category: watchedCategory })}
+                  disabled={!watchedTitle || coverFetching}>
+                  {coverFetching ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : <Search className="w-3 h-3 mr-1.5" />}
+                  Search
                 </Button>
               </div>
 
               {coverResults && coverResults.length > 0 && (
-                <div className="flex gap-2 flex-wrap">
-                  {coverResults.map((result, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setSelectedCover(result.coverUrl)}
-                      data-testid={`cover-option-${idx}`}
-                      className={cn(
-                        "relative w-16 h-24 rounded-lg overflow-hidden ring-2 transition-all",
-                        selectedCover === result.coverUrl ? "ring-primary" : "ring-transparent hover:ring-border"
-                      )}
-                    >
-                      <img src={result.coverUrl} alt={result.title} className="w-full h-full object-cover" />
-                      {selectedCover === result.coverUrl && (
-                        <div className="absolute inset-0 bg-primary/30 flex items-center justify-center">
-                          <Check className="w-5 h-5 text-white" />
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 snap-x">
+                  {coverResults.map((result, i) => (
+                    <button key={i} type="button" onClick={() => setSelectedCover(result.url)}
+                      className={cn("relative w-16 h-24 flex-shrink-0 rounded-md overflow-hidden border-2 transition-all snap-start",
+                        selectedCover === result.url ? "border-primary scale-105" : "border-transparent hover:border-primary/50")}>
+                      <img src={result.url} alt="Cover" className="w-full h-full object-cover" />
+                      {selectedCover === result.url && (
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                          <Check className="w-6 h-6 text-white drop-shadow-md" />
                         </div>
                       )}
                     </button>
@@ -381,45 +269,30 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                 </div>
               )}
 
-              {coverSearch && coverResults && coverResults.length === 0 && !coverFetching && (
-                <p className="text-xs text-muted-foreground">No covers found. Try the manual URL below.</p>
-              )}
-
-              <FormField
-                control={form.control}
-                name="customCoverUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs text-muted-foreground">Or paste a custom cover URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} data-testid="input-custom-cover" className="text-xs" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="customCoverUrl" render={({ field }) => (
+                <FormItem className="mt-2">
+                  <FormControl><Input placeholder="Or paste custom image URL..." {...field} className="text-xs" onChange={(e) => { field.onChange(e); setSelectedCover(null); }} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
               {(selectedCover || form.watch("customCoverUrl")) && (
-                <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
+                <div className="mt-2 flex items-center gap-3 p-2 rounded-lg bg-muted/50">
                   <img src={selectedCover || form.watch("customCoverUrl") || ""} alt="Selected cover" className="w-10 h-14 object-cover rounded-md" />
                   <p className="text-xs text-muted-foreground">Cover selected</p>
                 </div>
               )}
             </div>
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes (optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Any notes about this title..." className="resize-none text-sm" rows={2} {...field} data-testid="textarea-notes" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="notes" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notes (optional)</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="Any notes about this title..." className="resize-none text-sm" rows={2} {...field} data-testid="textarea-notes" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">Cancel</Button>

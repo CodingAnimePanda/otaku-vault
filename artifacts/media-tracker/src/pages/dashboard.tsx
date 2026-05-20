@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   webtoon: <BookOpen className="w-5 h-5" />,
   manhwa: <BookOpen className="w-5 h-5" />,
+  manhua: <BookOpen className="w-5 h-5" />,
   manga: <BookOpen className="w-5 h-5" />,
   anime: <Tv className="w-5 h-5" />,
 };
@@ -33,6 +34,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 const CATEGORY_COLORS: Record<string, string> = {
   webtoon: "text-blue-400 bg-blue-500/10",
   manhwa: "text-purple-400 bg-purple-500/10",
+  manhua: "text-emerald-400 bg-emerald-500/10",
   manga: "text-orange-400 bg-orange-500/10",
   anime: "text-pink-400 bg-pink-500/10",
 };
@@ -102,7 +104,6 @@ function SmallMediaCard({
         <p className={cn("text-[10px] capitalize mt-0.5", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>
           {item.category}
         </p>
-        {item.currentChapter && <p className="text-[10px] text-muted-foreground mt-0.5">{item.currentChapter}</p>}
         {dropReason && <p className="text-[10px] text-red-400/80 mt-0.5 italic line-clamp-1">"{dropReason}"</p>}
         <div className="flex items-center gap-1 mt-1.5">
           <button onClick={onEdit} className="text-[9px] text-muted-foreground hover:text-primary flex items-center gap-0.5 transition-colors">
@@ -131,18 +132,13 @@ export default function Dashboard() {
   const [statusTab, setStatusTab] = useState<StatusTab>("reading");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
   const [favorites, setFavorites] = useState<Set<number>>(loadFavorites);
   const [dropReasons, setDropReasons] = useState<Record<number, string>>(loadDropReasons);
-
   const { data: stats } = useGetMediaStats();
   const { data: media, isLoading: mediaLoading } = useListMedia({ listType: "library" });
   const updateMedia = useUpdateMedia();
-
   const mediaArray = Array.isArray(media) ? media : [];
-
   const sortAlpha = (arr: any[]) => [...arr].sort((a, b) => a.title.localeCompare(b.title));
-
   const continueItems = useMemo(() => {
     if (!mediaArray.length) return [];
     return mediaArray
@@ -153,9 +149,8 @@ export default function Dashboard() {
         if (tierA !== tierB) return tierA - tierB;
         return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
       })
-      .slice(0, 6);
+      .slice(0, 10);
   }, [mediaArray]);
-
   const filteredMedia = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return sortAlpha(q
@@ -172,7 +167,6 @@ export default function Dashboard() {
   const favoriteItems = useMemo(() => sortAlpha(
     mediaArray.filter((m) => favorites.has(m.id) || m.tier === "S")
   ), [mediaArray, favorites]);
-
   const tabItems = useMemo(() => {
     if (statusTab === "reading") return sortAlpha(mediaArray.filter((m) => m.status === "reading" || m.status === "watching" || m.status === "paused"));
     if (statusTab === "completed") return sortAlpha(mediaArray.filter((m) => m.status === "completed"));
@@ -191,7 +185,6 @@ export default function Dashboard() {
       },
     });
   };
-
   const handleMoveToAvoid = (id: number, title: string) => {
     updateMedia.mutate({ id, data: { listType: "avoid" } as any }, {
       onSuccess: () => {
@@ -201,7 +194,6 @@ export default function Dashboard() {
       },
     });
   };
-
   const handleToggleFavorite = (id: number) => {
     setFavorites((prev) => {
       const next = new Set(prev);
@@ -210,9 +202,7 @@ export default function Dashboard() {
       return next;
     });
   };
-
   const totalItems = Object.values(stats?.totalByCategory ?? {}).reduce((a, b) => a + b, 0);
-
   const sectionCardGrid = (items: any[]) => (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
       {items.map((item) => (
@@ -253,8 +243,8 @@ export default function Dashboard() {
 
       {/* Stats grid */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {(["webtoon", "manhwa", "manga", "anime"] as const).map((cat) => {
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {(["webtoon", "manhwa", "manhua", "manga", "anime"] as const).map((cat) => {
             const total = stats?.totalByCategory?.[cat] ?? 0;
             const completed = stats?.completedByCategory?.[cat] ?? 0;
             return (
@@ -319,11 +309,6 @@ export default function Dashboard() {
                       <span className="text-[10px] text-muted-foreground capitalize">{featured.category}</span>
                     </div>
                     <h3 className="font-display font-semibold text-base leading-tight line-clamp-2 mb-1">{featured.title}</h3>
-                    {featured.currentChapter && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="w-3 h-3" />{featured.currentChapter}
-                      </p>
-                    )}
                   </div>
                   <div className="flex gap-2 mt-3">
                     {(featured as any).readingUrl ? (
@@ -393,8 +378,6 @@ export default function Dashboard() {
       {/* ── Status Tabs ── */}
       <div className="border-t border-border pt-6 space-y-4">
         <h2 className="text-lg font-display font-semibold">Browse by Status</h2>
-
-        {/* Tab bar */}
         <div className="flex gap-1 border-b border-border">
           {statusTabs.map((t) => (
             <button key={t.id} onClick={() => setStatusTab(t.id)}
@@ -414,7 +397,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Tab content */}
         {statusTab === "all" && (
           <div className="space-y-4">
             <div className="relative">
@@ -456,7 +438,6 @@ export default function Dashboard() {
                             {STATUS_LABELS[item.status] ?? item.status}
                           </span>
                         )}
-                        {item.currentChapter && <span className="text-[10px] text-white/70">{item.currentChapter}</span>}
                         {(item as any).readingUrl && (
                           <a href={(item as any).readingUrl} target="_blank" rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
