@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useUser } from "@clerk/clerk-react";
-import { useAuth } from "@clerk/clerk-react";
+import { useUser, useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,26 +61,6 @@ interface FriendLibraryItem {
   currentChapter: string | null;
   readingUrl: string | null;
 }
-
-// ── API helpers ───────────────────────────────────────────────────────────────
-
-const apiFetch = async (path: string, options?: RequestInit) => {
-  const token = await getToken();
-  const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
-  const res = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers ?? {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(err.error ?? "Request failed");
-  }
-  return res.json();
-};
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
@@ -320,7 +299,28 @@ type Tab = "friends" | "requests" | "recs";
 
 export default function FriendsPage() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const { toast } = useToast();
+
+  const apiFetch = async (path: string, options?: RequestInit) => {
+    const token = await getToken();
+    const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+    const res = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options?.headers ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(err.error ?? "Request failed");
+    }
+    return res.json();
+  };
+
+  // ... rest of component
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
