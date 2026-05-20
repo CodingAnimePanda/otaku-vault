@@ -167,8 +167,6 @@ router.patch("/media/:id", async (req, res): Promise<void> => {
 
   const parsed = UpdateMediaBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-    reviewText: z.string().optional().nullable(),
-    rating: z.number().optional().nullable(),
 
   const data = parsed.data;
   // Find your PATCH /media/:id route and update the .set block:
@@ -181,8 +179,8 @@ router.patch("/media/:id", async (req, res): Promise<void> => {
       notes: data.notes ?? null,
       coverUrl: data.coverUrl ?? null,
       readingUrl: data.readingUrl ?? null,
-      reviewText: req.body.reviewText ?? null, // ADD THIS
-      rating: req.body.rating ?? null,         // ADD THIS
+      reviewText: req.body.reviewText ?? null, // Ensure these lines use commas, not semicolons
+      rating: req.body.rating ?? null,         
     })
     .where(and(eq(mediaTable.id, mediaId), eq(mediaTable.userId, userId)))
     .returning();
