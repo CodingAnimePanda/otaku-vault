@@ -1,5 +1,4 @@
 // artifacts/media-tracker/src/components/layout.tsx
-import { apiRequest } from "@/lib/api";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -369,7 +368,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 useEffect(() => {
   const fetchBadge = async () => {
     try {
-      const res = await apiRequest("/api/friends/notifications/count");
+      const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+      const res = await fetch(`${baseUrl}/api/friends/notifications/count`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setFriendBadge(data.total ?? 0);

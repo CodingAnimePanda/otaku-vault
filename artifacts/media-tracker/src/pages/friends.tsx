@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -66,7 +65,15 @@ interface FriendLibraryItem {
 // ── API helpers ───────────────────────────────────────────────────────────────
 
 async function apiFetch(path: string, options?: RequestInit) {
-  const res = await apiRequest(path, options);
+  const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
+    },
+    credentials: "include",
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Unknown error" }));
     throw new Error(err.error ?? "Request failed");
