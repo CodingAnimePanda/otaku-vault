@@ -243,6 +243,8 @@ export const UpdateMediaBody = zod.object({
   listType: zod.enum(["library", "to_read", "avoid", "bl"]).optional(),
   addedBy: zod.string().nullish(),
   readingUrl: zod.string().nullish(),
+  reviewText: z.string().optional().nullable(),
+  rating: z.number().optional().nullable(),
 });
 
 export const UpdateMediaResponse = zod.object({
