@@ -5,7 +5,8 @@
  * Media Tracker API
  * OpenAPI spec version: 0.1.0
  */
-import * as zod from "zod";
+import * as zod from "zod";\
+import { z } from "zod";
 
 /**
  * @summary Health check
@@ -235,7 +236,6 @@ export const UpdateMediaBody = zod.object({
   coverUrl: zod.string().nullish(),
   customCoverUrl: zod.string().nullish(),
   tier: zod.enum(["S", "A", "B", "C", "D", "F"]).nullish(),
-  rating: zod.number().nullish(),
   genres: zod.array(zod.string()).optional(),
   notes: zod.string().nullish(),
   currentChapter: zod.string().nullish(),
