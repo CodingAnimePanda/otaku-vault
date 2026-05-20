@@ -1,7 +1,7 @@
 // artifacts/media-tracker/src/components/layout.tsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { customFetch } from "@workspace/api-client-react";
+import { useAuth } from "@clerk/clerk-react";
 import {
   Library, ListPlus, LayoutList, Star, AlertTriangle,
   Menu, BookOpen, Heart, Lock, X, Plus, Trash2, Globe,
@@ -330,6 +330,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [sitesOpen, setSitesOpen] = useState(false);
   const [bgOpen, setBgOpen] = useState(false);
   const { user } = useUser();
+  const { getToken } = useAuth();
   const userId = user?.id ?? "guest";
 
   const [bg, setBg] = useState<BgSettings>(() => loadBg(userId));
@@ -369,8 +370,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 useEffect(() => {
   const fetchBadge = async () => {
     try {
-      const data = await customFetch<{ total: number }>("/api/friends/notifications/count");
-      setFriendBadge(data.total ?? 0);
+      const token = await getToken();
+      const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+      const res = await fetch(`${baseUrl}/api/friends/notifications/count`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFriendBadge(data.total ?? 0);
+      }
     } catch {}
   };
   if (user?.id) {

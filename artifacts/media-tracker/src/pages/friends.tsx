@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,11 +65,23 @@ interface FriendLibraryItem {
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
-import { customFetch } from "@workspace/api-client-react";
-
-async function apiFetch(path: string, options?: RequestInit) {
-  return customFetch(path, options);
-}
+const apiFetch = async (path: string, options?: RequestInit) => {
+  const token = await getToken();
+  const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.error ?? "Request failed");
+  }
+  return res.json();
+};
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
@@ -324,6 +337,8 @@ export default function FriendsPage() {
   const [viewingFriend, setViewingFriend] = useState<FriendEntry | null>(null);
   const [sendRecOpen, setSendRecOpen] = useState(false);
   const [sendRecTitle, setSendRecTitle] = useState("");
+
+  const { getToken } = useAuth();
 
   // Load profile on mount
   useEffect(() => {
