@@ -319,6 +319,24 @@ export default function FriendsPage() {
 
   const { getToken } = useAuth();
 
+    const apiFetch = async (path: string, options?: RequestInit) => {
+    const token = await getToken();
+    const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+    const res = await fetch(`${baseUrl}${path}`, {
+        ...options,
+        headers: {
+        "Content-Type": "application/json",
+        ...(options?.headers ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(err.error ?? "Request failed");
+    }
+    return res.json();
+    };
+
   // Load profile on mount
   useEffect(() => {
     apiFetch("/api/friends/profile/me")
