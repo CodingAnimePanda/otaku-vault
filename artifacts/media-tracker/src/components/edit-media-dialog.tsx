@@ -171,18 +171,21 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
     saveRatings(media.id, ratings);
 
     updateMedia.mutate(
-      {
-        id: media.id,
-        data: {
-          title: values.title,
-          category: values.category, // Specifically fixed!
-          status: (values.status as any) ?? null,
-          listType: values.listType,
-          notes: values.notes || null,
-          coverUrl: values.coverUrl || null,
-          readingUrl: values.readingUrl || null,
-        },
+    {
+      id: media.id,
+      data: {
+        title: values.title,
+        category: values.category,
+        status: (values.status as any) ?? null,
+        listType: values.listType,
+        notes: values.notes || null,
+        coverUrl: values.coverUrl || null,
+        readingUrl: values.readingUrl || null,
+        reviewText: values.reviewText || null, // ADD THIS
+        rating: parseFloat(averageScore),     // ADD THIS
       },
+    },
+
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });

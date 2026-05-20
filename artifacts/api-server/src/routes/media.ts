@@ -169,15 +169,18 @@ router.patch("/media/:id", async (req, res): Promise<void> => {
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const data = parsed.data;
+  // Find your PATCH /media/:id route and update the .set block:
   const [updated] = await db.update(mediaTable)
     .set({
       title: data.title,
-      category: data.category, // <-- This specifically fixes the category edit bug
+      category: data.category,
       status: data.status,
       listType: data.listType,
       notes: data.notes ?? null,
       coverUrl: data.coverUrl ?? null,
       readingUrl: data.readingUrl ?? null,
+      reviewText: req.body.reviewText ?? null, // ADD THIS
+      rating: req.body.rating ?? null,         // ADD THIS
     })
     .where(and(eq(mediaTable.id, mediaId), eq(mediaTable.userId, userId)))
     .returning();
