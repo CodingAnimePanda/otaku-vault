@@ -1,12 +1,12 @@
 // artifacts/media-tracker/src/components/layout.tsx
+import { apiRequest } from "@/lib/api";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Library, ListPlus, LayoutList, Star, AlertTriangle,
   Menu, BookOpen, Heart, Lock, X, Plus, Trash2, Globe,
   Settings, Tv, Clapperboard, Sparkles, Quote, LogOut,
-  Palette, Camera, Upload,
-import { Users } from "lucide-react";
+  Palette, Camera, Upload, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
