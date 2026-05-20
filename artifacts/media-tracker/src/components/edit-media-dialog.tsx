@@ -170,9 +170,8 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
     // Save ratings locally
     saveRatings(media.id, ratings);
 
-    updateMedia.mutate(
-    {
-      id: media.id,
+    updateMedia.mutate({
+      id: media.id, // Ensure this is the correct numeric ID
       data: {
         title: values.title,
         category: values.category,
