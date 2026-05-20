@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import {
   Plus, BookOpen, Tv, Sparkles, PlayCircle, Clock,
   Search, ExternalLink, Pencil, XCircle, AlertTriangle,
-  Heart, ChevronDown, ChevronRight, Star,
+  Heart, Star,
 } from "lucide-react";
 import { AddMediaDialog } from "@/components/add-media-dialog";
 import { EditMediaDialog } from "@/components/edit-media-dialog";
@@ -59,56 +59,19 @@ function getSiteLabel(url: string | null | undefined): string {
   try { return new URL(url).hostname.replace("www.", ""); } catch { return "Read Now"; }
 }
 
-// ── Favorites localStorage helpers ────────────────────────────────────────────
 function loadFavorites(): Set<number> {
-  try {
-    const stored = localStorage.getItem("ov_favorites");
-    if (stored) return new Set(JSON.parse(stored));
-  } catch {}
+  try { const s = localStorage.getItem("ov_favorites"); if (s) return new Set(JSON.parse(s)); } catch {}
   return new Set();
 }
 function saveFavorites(favs: Set<number>) {
   try { localStorage.setItem("ov_favorites", JSON.stringify([...favs])); } catch {}
 }
-
-// ── Drop reasons localStorage helpers ─────────────────────────────────────────
 function loadDropReasons(): Record<number, string> {
-  try {
-    const stored = localStorage.getItem("ov_drop_reasons");
-    if (stored) return JSON.parse(stored);
-  } catch {}
+  try { const s = localStorage.getItem("ov_drop_reasons"); if (s) return JSON.parse(s); } catch {}
   return {};
 }
 function saveDropReasons(reasons: Record<number, string>) {
   try { localStorage.setItem("ov_drop_reasons", JSON.stringify(reasons)); } catch {}
-}
-
-// ── Collapsible Section ───────────────────────────────────────────────────────
-function CollapsibleSection({
-  title, icon, count, color, defaultOpen = false, children,
-}: {
-  title: string; icon: React.ReactNode; count: number;
-  color: string; defaultOpen?: boolean; children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="space-y-3">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 w-full text-left group"
-      >
-        <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0", color)}>
-          {icon}
-        </div>
-        <h2 className="text-base font-display font-semibold">{title}</h2>
-        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{count}</span>
-        <div className="ml-auto text-muted-foreground group-hover:text-foreground transition-colors">
-          {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </div>
-      </button>
-      {open && children}
-    </div>
-  );
 }
 
 // ── Small Media Card ──────────────────────────────────────────────────────────
@@ -139,12 +102,8 @@ function SmallMediaCard({
         <p className={cn("text-[10px] capitalize mt-0.5", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>
           {item.category}
         </p>
-        {item.currentChapter && (
-          <p className="text-[10px] text-muted-foreground mt-0.5">{item.currentChapter}</p>
-        )}
-        {dropReason && (
-          <p className="text-[10px] text-red-400/80 mt-0.5 italic line-clamp-1">"{dropReason}"</p>
-        )}
+        {item.currentChapter && <p className="text-[10px] text-muted-foreground mt-0.5">{item.currentChapter}</p>}
+        {dropReason && <p className="text-[10px] text-red-400/80 mt-0.5 italic line-clamp-1">"{dropReason}"</p>}
         <div className="flex items-center gap-1 mt-1.5">
           <button onClick={onEdit} className="text-[9px] text-muted-foreground hover:text-primary flex items-center gap-0.5 transition-colors">
             <Pencil className="w-2.5 h-2.5" /> Edit
@@ -161,12 +120,15 @@ function SmallMediaCard({
   );
 }
 
+type StatusTab = "reading" | "completed" | "dropped" | "all";
+
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any | null>(null);
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusTab, setStatusTab] = useState<StatusTab>("reading");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -178,6 +140,8 @@ export default function Dashboard() {
   const updateMedia = useUpdateMedia();
 
   const mediaArray = Array.isArray(media) ? media : [];
+
+  const sortAlpha = (arr: any[]) => [...arr].sort((a, b) => a.title.localeCompare(b.title));
 
   const continueItems = useMemo(() => {
     if (!mediaArray.length) return [];
@@ -193,26 +157,28 @@ export default function Dashboard() {
   }, [mediaArray]);
 
   const filteredMedia = useMemo(() => {
-    if (!searchQuery.trim()) return mediaArray;
-    const q = searchQuery.toLowerCase();
-    return mediaArray.filter((m) =>
-      m.title.toLowerCase().includes(q) ||
-      m.category.toLowerCase().includes(q) ||
-      (m.status ?? "").toLowerCase().includes(q)
+    const q = searchQuery.toLowerCase().trim();
+    return sortAlpha(q
+      ? mediaArray.filter((m) =>
+          m.title.toLowerCase().includes(q) ||
+          m.category.toLowerCase().includes(q) ||
+          (m.status ?? "").toLowerCase().includes(q)
+        )
+      : mediaArray
     );
   }, [mediaArray, searchQuery]);
 
-  // Grouped sections
-  const favoriteItems = useMemo(() =>
-    mediaArray.filter((m) => favorites.has(m.id) || m.tier === "S"), [mediaArray, favorites]);
-  const readingItems = useMemo(() =>
-    mediaArray.filter((m) => m.status === "reading" || m.status === "watching"), [mediaArray]);
-  const onHoldItems = useMemo(() =>
-    mediaArray.filter((m) => m.status === "paused"), [mediaArray]);
-  const completedItems = useMemo(() =>
-    mediaArray.filter((m) => m.status === "completed"), [mediaArray]);
-  const droppedItems = useMemo(() =>
-    mediaArray.filter((m) => m.status === "dropped"), [mediaArray]);
+  // Status tab items — all alphabetically sorted
+  const favoriteItems = useMemo(() => sortAlpha(
+    mediaArray.filter((m) => favorites.has(m.id) || m.tier === "S")
+  ), [mediaArray, favorites]);
+
+  const tabItems = useMemo(() => {
+    if (statusTab === "reading") return sortAlpha(mediaArray.filter((m) => m.status === "reading" || m.status === "watching" || m.status === "paused"));
+    if (statusTab === "completed") return sortAlpha(mediaArray.filter((m) => m.status === "completed"));
+    if (statusTab === "dropped") return sortAlpha(mediaArray.filter((m) => m.status === "dropped"));
+    return sortAlpha(mediaArray);
+  }, [mediaArray, statusTab]);
 
   const featured = continueItems[0];
   const restContinue = continueItems.slice(1);
@@ -251,8 +217,7 @@ export default function Dashboard() {
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
       {items.map((item) => (
         <SmallMediaCard
-          key={item.id}
-          item={item}
+          key={item.id} item={item}
           onEdit={() => setEditItem(item)}
           onDrop={() => handleDrop(item.id, item.title)}
           onAvoid={() => handleMoveToAvoid(item.id, item.title)}
@@ -263,6 +228,13 @@ export default function Dashboard() {
       ))}
     </div>
   );
+
+  const statusTabs: { id: StatusTab; label: string; icon: React.ReactNode; count: number }[] = [
+    { id: "reading", label: "Reading / Watching", icon: <PlayCircle className="w-4 h-4" />, count: mediaArray.filter((m) => m.status === "reading" || m.status === "watching" || m.status === "paused").length },
+    { id: "completed", label: "Completed", icon: <Star className="w-4 h-4" />, count: mediaArray.filter((m) => m.status === "completed").length },
+    { id: "dropped", label: "Dropped", icon: <XCircle className="w-4 h-4" />, count: mediaArray.filter((m) => m.status === "dropped").length },
+    { id: "all", label: "All Media", icon: <BookOpen className="w-4 h-4" />, count: mediaArray.length },
+  ];
 
   return (
     <div className="space-y-8">
@@ -406,179 +378,172 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Collapsible Sections ── */}
-      <div className="space-y-5 border-t border-border pt-6">
+      {/* ── Favorites ── */}
+      {favoriteItems.length > 0 && (
+        <div className="border-t border-border pt-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <Heart className="w-4 h-4 text-rose-400 fill-rose-400" />
+            <h2 className="text-base font-display font-semibold">Favorites</h2>
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{favoriteItems.length}</span>
+          </div>
+          {sectionCardGrid(favoriteItems)}
+        </div>
+      )}
+
+      {/* ── Status Tabs ── */}
+      <div className="border-t border-border pt-6 space-y-4">
         <h2 className="text-lg font-display font-semibold">Browse by Status</h2>
 
-        {favoriteItems.length > 0 && (
-          <CollapsibleSection title="Favorites" icon={<Heart className="w-4 h-4 text-rose-400" />}
-            count={favoriteItems.length} color="bg-rose-500/10" defaultOpen>
-            <div className="space-y-2">
-              {sectionCardGrid(favoriteItems)}
+        {/* Tab bar */}
+        <div className="flex gap-1 border-b border-border">
+          {statusTabs.map((t) => (
+            <button key={t.id} onClick={() => setStatusTab(t.id)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
+                statusTab === t.id
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}>
+              {t.icon}
+              {t.label}
+              <span className={cn(
+                "text-xs rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center leading-none",
+                statusTab === t.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}>{t.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        {statusTab === "all" && (
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Search titles, categories, status..." value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
             </div>
-          </CollapsibleSection>
-        )}
-
-        {readingItems.length > 0 && (
-          <CollapsibleSection title="Reading / Watching" icon={<PlayCircle className="w-4 h-4 text-green-400" />}
-            count={readingItems.length} color="bg-green-500/10" defaultOpen>
-            {sectionCardGrid(readingItems)}
-          </CollapsibleSection>
-        )}
-
-        {onHoldItems.length > 0 && (
-          <CollapsibleSection title="On Hold" icon={<Clock className="w-4 h-4 text-yellow-400" />}
-            count={onHoldItems.length} color="bg-yellow-500/10">
-            {sectionCardGrid(onHoldItems)}
-          </CollapsibleSection>
-        )}
-
-        {completedItems.length > 0 && (
-          <CollapsibleSection title="Completed" icon={<Star className="w-4 h-4 text-primary" />}
-            count={completedItems.length} color="bg-primary/10">
-            {sectionCardGrid(completedItems)}
-          </CollapsibleSection>
-        )}
-
-        {droppedItems.length > 0 && (
-          <CollapsibleSection title="Dropped" icon={<XCircle className="w-4 h-4 text-red-400" />}
-            count={droppedItems.length} color="bg-red-500/10">
-            {sectionCardGrid(droppedItems)}
-          </CollapsibleSection>
-        )}
-      </div>
-
-      {/* All Media */}
-      <div className="border-t border-border pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-display font-semibold">All Media</h2>
-          <Button variant="ghost" size="sm" className="gap-2 text-xs text-muted-foreground"
-            onClick={() => setLocation("/recommended")} data-testid="button-see-recommendations">
-            <Sparkles className="w-3.5 h-3.5" /> Discover more
-          </Button>
-        </div>
-
-        <div className="relative mb-5">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search titles, categories, status..." value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
-        </div>
-
-        {mediaLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {[...Array(10)].map((_, i) => (
-              <div key={i} className="space-y-2">
-                <div className="aspect-[2/3] bg-muted animate-pulse rounded-xl" />
-                <div className="h-3.5 bg-muted animate-pulse rounded w-3/4" />
-              </div>
-            ))}
-          </div>
-        ) : filteredMedia.length > 0 ? (
-          <>
             {searchQuery && (
-              <p className="text-xs text-muted-foreground mb-3">
+              <p className="text-xs text-muted-foreground">
                 {filteredMedia.length} result{filteredMedia.length !== 1 ? "s" : ""} for "{searchQuery}"
               </p>
             )}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
-              {filteredMedia.map((item) => (
-                <div key={item.id} data-testid={`media-card-${item.id}`} className="group relative">
-                  <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
-                    {item.coverUrl || item.customCoverUrl ? (
-                      <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/30 text-xs p-4 text-center gap-2">
-                        <BookOpen className="w-5 h-5 text-muted-foreground/50" />
-                        <span className="text-muted-foreground">{item.title}</span>
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 gap-1.5">
-                      {item.status && (
-                        <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded self-start", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>
-                          {STATUS_LABELS[item.status] ?? item.status}
-                        </span>
-                      )}
-                      {item.currentChapter && <span className="text-[10px] text-white/70">{item.currentChapter}</span>}
-                      {(item as any).readingUrl && (
-                        <a href={(item as any).readingUrl} target="_blank" rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-white/15 hover:bg-white/25 text-white text-[10px] font-medium transition-colors">
-                          <ExternalLink className="w-3 h-3" /> {getSiteLabel((item as any).readingUrl)}
-                        </a>
-                      )}
-                      <div className="flex gap-1 mt-0.5">
-                        <button onClick={() => setEditItem(item)}
-                          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white text-[10px] transition-colors">
-                          <Pencil className="w-2.5 h-2.5" /> Edit
-                        </button>
-                        <button onClick={() => handleToggleFavorite(item.id)}
-                          className={cn("flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] transition-colors",
-                            favorites.has(item.id)
-                              ? "bg-rose-500/40 text-rose-200"
-                              : "bg-white/10 hover:bg-rose-500/30 text-white hover:text-rose-200")}>
-                          <Heart className={cn("w-2.5 h-2.5", favorites.has(item.id) && "fill-rose-200")} />
-                        </button>
-                        <button onClick={() => handleDrop(item.id, item.title)}
-                          className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 text-[10px] transition-colors">
-                          <XCircle className="w-2.5 h-2.5" /> Drop
-                        </button>
-                        <button onClick={() => handleMoveToAvoid(item.id, item.title)}
-                          className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-red-500/20 hover:bg-red-500/40 text-red-300 text-[10px] transition-colors">
-                          <AlertTriangle className="w-2.5 h-2.5" /> Avoid
-                        </button>
-                      </div>
-                    </div>
-                    {item.tier && (
-                      <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center">
-                        <span className="text-xs font-display font-black text-yellow-400">{item.tier}</span>
-                      </div>
-                    )}
-                    {favorites.has(item.id) && (
-                      <div className="absolute top-2 left-2">
-                        <Heart className="w-3.5 h-3.5 fill-rose-400 text-rose-400 drop-shadow" />
-                      </div>
-                    )}
+            {mediaLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {[...Array(10)].map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="aspect-[2/3] bg-muted animate-pulse rounded-xl" />
+                    <div className="h-3.5 bg-muted animate-pulse rounded w-3/4" />
                   </div>
-                  <div className="mt-2 space-y-0.5">
-                    <h3 className="font-medium text-sm leading-tight line-clamp-2">{item.title}</h3>
-                    <div className="flex items-center justify-between">
-                      <p className={cn("text-xs capitalize font-medium", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>
-                        {item.category}
-                      </p>
-                      {(item as any).readingUrl && (
-                        <a href={(item as any).readingUrl} target="_blank" rel="noopener noreferrer"
-                          className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5 transition-colors">
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : mediaArray.length > 0 && searchQuery ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Search className="w-10 h-10 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground text-sm">No results for "{searchQuery}"</p>
-            <button className="text-xs text-primary mt-2 hover:underline" onClick={() => setSearchQuery("")}>Clear search</button>
-          </div>
-        ) : (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
-                <BookOpen className="w-8 h-8 text-primary" />
+                ))}
               </div>
-              <h3 className="font-display font-semibold text-xl mb-2">Your library is empty</h3>
-              <p className="text-muted-foreground text-sm max-w-sm mb-6">
-                Start by adding the webtoons, manga, manhwa, and anime you've read or watched.
-              </p>
-              <Button onClick={() => setAddOpen(true)} className="gap-2" data-testid="button-add-first">
-                <Plus className="w-4 h-4" /> Add your first title
-              </Button>
-            </CardContent>
-          </Card>
+            ) : filteredMedia.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
+                {filteredMedia.map((item) => (
+                  <div key={item.id} data-testid={`media-card-${item.id}`} className="group relative">
+                    <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
+                      {item.coverUrl || item.customCoverUrl ? (
+                        <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/30 text-xs p-4 text-center gap-2">
+                          <BookOpen className="w-5 h-5 text-muted-foreground/50" />
+                          <span className="text-muted-foreground">{item.title}</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 gap-1.5">
+                        {item.status && (
+                          <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded self-start", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>
+                            {STATUS_LABELS[item.status] ?? item.status}
+                          </span>
+                        )}
+                        {item.currentChapter && <span className="text-[10px] text-white/70">{item.currentChapter}</span>}
+                        {(item as any).readingUrl && (
+                          <a href={(item as any).readingUrl} target="_blank" rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-white/15 hover:bg-white/25 text-white text-[10px] font-medium transition-colors">
+                            <ExternalLink className="w-3 h-3" /> {getSiteLabel((item as any).readingUrl)}
+                          </a>
+                        )}
+                        <div className="flex gap-1 mt-0.5">
+                          <button onClick={() => setEditItem(item)}
+                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white text-[10px] transition-colors">
+                            <Pencil className="w-2.5 h-2.5" /> Edit
+                          </button>
+                          <button onClick={() => handleToggleFavorite(item.id)}
+                            className={cn("flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] transition-colors",
+                              favorites.has(item.id) ? "bg-rose-500/40 text-rose-200" : "bg-white/10 hover:bg-rose-500/30 text-white hover:text-rose-200")}>
+                            <Heart className={cn("w-2.5 h-2.5", favorites.has(item.id) && "fill-rose-200")} />
+                          </button>
+                          <button onClick={() => handleDrop(item.id, item.title)}
+                            className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 text-[10px] transition-colors">
+                            <XCircle className="w-2.5 h-2.5" /> Drop
+                          </button>
+                          <button onClick={() => handleMoveToAvoid(item.id, item.title)}
+                            className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-red-500/20 hover:bg-red-500/40 text-red-300 text-[10px] transition-colors">
+                            <AlertTriangle className="w-2.5 h-2.5" /> Avoid
+                          </button>
+                        </div>
+                      </div>
+                      {item.tier && (
+                        <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                          <span className="text-xs font-display font-black text-yellow-400">{item.tier}</span>
+                        </div>
+                      )}
+                      {favorites.has(item.id) && (
+                        <div className="absolute top-2 left-2">
+                          <Heart className="w-3.5 h-3.5 fill-rose-400 text-rose-400 drop-shadow" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-2 space-y-0.5">
+                      <h3 className="font-medium text-sm leading-tight line-clamp-2">{item.title}</h3>
+                      <div className="flex items-center justify-between">
+                        <p className={cn("text-xs capitalize font-medium", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>
+                          {item.category}
+                        </p>
+                        {(item as any).readingUrl && (
+                          <a href={(item as any).readingUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5 transition-colors">
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : mediaArray.length > 0 && searchQuery ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Search className="w-10 h-10 text-muted-foreground/30 mb-3" />
+                <p className="text-muted-foreground text-sm">No results for "{searchQuery}"</p>
+                <button className="text-xs text-primary mt-2 hover:underline" onClick={() => setSearchQuery("")}>Clear search</button>
+              </div>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
+                    <BookOpen className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="font-display font-semibold text-xl mb-2">Your library is empty</h3>
+                  <p className="text-muted-foreground text-sm max-w-sm mb-6">
+                    Start by adding the webtoons, manga, manhwa, and anime you've read or watched.
+                  </p>
+                  <Button onClick={() => setAddOpen(true)} className="gap-2" data-testid="button-add-first">
+                    <Plus className="w-4 h-4" /> Add your first title
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {statusTab !== "all" && (
+          tabItems.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <BookOpen className="w-10 h-10 mx-auto mb-3 opacity-20" />
+              <p className="text-sm">Nothing here yet.</p>
+            </div>
+          ) : sectionCardGrid(tabItems)
         )}
       </div>
 

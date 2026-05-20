@@ -332,11 +332,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
   const { getToken } = useAuth();
   const userId = user?.id ?? "guest";
+  const [bg, setBg] = useState<BgSettings>(DEFAULT_BG);
 
-  const [bg, setBg] = useState<BgSettings>(() => loadBg(userId));
-
-  // Reload bg when user changes
-  useEffect(() => { if (user?.id) setBg(loadBg(user.id)); }, [user?.id]);
+  // Load bg only once user is actually loaded
+  useEffect(() => {
+    if (user?.id) setBg(loadBg(user.id));
+  }, [user?.id]);
 
   const [blUnlocked, setBlUnlocked] = useState(() => {
     try { return localStorage.getItem("ovbl") === "1"; } catch { return false; }

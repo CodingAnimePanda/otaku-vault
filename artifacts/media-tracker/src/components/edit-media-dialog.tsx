@@ -141,31 +141,31 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
       onSaveDropReason(media.id, dropReason);
     }
     updateMedia.mutate(
-      {
-        id: media.id,
-        data: {
-          title: values.title,
-          category: values.category as any,
-          status: (values.status as any) ?? null,
-          listType: values.listType as any,
-          currentChapter: values.currentChapter || null,
-          notes: values.notes || null,
-          coverUrl: values.coverUrl || null,
-          readingUrl: values.readingUrl || null,
-        } as any,
-      },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetMediaStatsQueryKey() });
-          toast({ title: "Updated!", description: `${values.title} has been updated.` });
-          onClose();
-        },
-        onError: () => {
-          toast({ title: "Error", description: "Failed to update. Please try again.", variant: "destructive" });
-        },
-      }
-    );
+  {
+    id: media.id,
+    data: {
+      title: values.title,
+      category: values.category,
+      status: (values.status as any) ?? null,
+      listType: values.listType,
+      currentChapter: values.currentChapter || null,
+      notes: values.notes || null,
+      coverUrl: values.coverUrl || null,
+      readingUrl: values.readingUrl || null,
+    },
+  },
+  {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetMediaStatsQueryKey() });
+      toast({ title: "Updated!", description: `${values.title} has been updated.` });
+      onClose();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update. Please try again.", variant: "destructive" });
+    },
+  }
+);
   };
 
   if (!media) return null;
