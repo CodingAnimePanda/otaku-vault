@@ -157,8 +157,8 @@ router.post("/media", async (req, res): Promise<void> => {
   res.status(201).json(serializeMedia(row));
 });
 
-// PATCH /media/:id
-router.patch("/media/:id", async (req, res): Promise<void> => {
+// PUT /media/:id
+router.put("/media/:id", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
