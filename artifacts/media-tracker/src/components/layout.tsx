@@ -1,6 +1,7 @@
 // artifacts/media-tracker/src/components/layout.tsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
+import { customFetch } from "@workspace/api-client-react";
 import {
   Library, ListPlus, LayoutList, Star, AlertTriangle,
   Menu, BookOpen, Heart, Lock, X, Plus, Trash2, Globe,
@@ -364,8 +365,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const [friendBadge, setFriendBadge] = useState(0);
-
-import { customFetch } from "@workspace/api-client-react";
 
 useEffect(() => {
   const fetchBadge = async () => {
