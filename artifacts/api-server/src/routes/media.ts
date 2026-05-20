@@ -33,6 +33,7 @@ function serializeMedia(row: typeof mediaTable.$inferSelect) {
     customCoverUrl: row.customCoverUrl ?? null,
     tier: row.tier as "S" | "A" | "B" | "C" | "D" | "F" | null,
     rating: row.rating ?? null,
+    reviewText: row.reviewText ?? null,
     genres: row.genres ?? [],
     notes: row.notes ?? null,
     hasUpdate: row.hasUpdate,
@@ -161,12 +162,13 @@ router.patch("/media/:id", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const params = UpdateMediaParams.safeParse(req.params);
-  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
-  const mediaId = params.data.id;
+  const mediaId = parseInt(req.params.id); // Ensure ID is parsed
+  if (isNaN(mediaId)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
   const parsed = UpdateMediaBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+    reviewText: z.string().optional().nullable(),
+    rating: z.number().optional().nullable(),
 
   const data = parsed.data;
   // Find your PATCH /media/:id route and update the .set block:
