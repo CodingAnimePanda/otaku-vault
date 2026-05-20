@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Users, UserPlus, Bell, BookOpen, Send, Check, X,
-  ChevronRight, Search, Heart, Star, BookMarked, Inbox,
+  Users, UserPlus, BookOpen, Send, Check, X,
+  Search, Heart, BookMarked, Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,12 +21,10 @@ interface UserProfile {
   displayName: string | null;
   avatarUrl: string | null;
 }
-
 interface FriendEntry {
   friendshipId: number;
   friend: UserProfile | null;
 }
-
 interface FriendRequest {
   id: number;
   senderId: string;
@@ -35,7 +33,6 @@ interface FriendRequest {
   createdAt: string;
   sender: UserProfile | null;
 }
-
 interface ReceivedRec {
   id: number;
   fromUserId: string;
@@ -49,7 +46,6 @@ interface ReceivedRec {
   createdAt: string;
   from: { username: string; displayName: string | null } | null;
 }
-
 interface FriendLibraryItem {
   id: number;
   title: string;
@@ -62,6 +58,8 @@ interface FriendLibraryItem {
   readingUrl: string | null;
 }
 
+type ApiFetch = (path: string, options?: RequestInit) => Promise<any>;
+
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
 function Avatar({ profile, size = "md" }: { profile: UserProfile | null; size?: "sm" | "md" | "lg" }) {
@@ -71,15 +69,18 @@ function Avatar({ profile, size = "md" }: { profile: UserProfile | null; size?: 
     <div className={cn("rounded-full bg-primary/20 flex items-center justify-center ring-2 ring-border flex-shrink-0 overflow-hidden", sizes[size])}>
       {profile?.avatarUrl
         ? <img src={profile.avatarUrl} alt={profile.username} className="w-full h-full object-cover" />
-        : <span className="font-bold text-primary">{initials}</span>
-      }
+        : <span className="font-bold text-primary">{initials}</span>}
     </div>
   );
 }
 
 // ── Setup Profile Dialog ──────────────────────────────────────────────────────
 
-function SetupProfileDialog({ open, onDone }: { open: boolean; onDone: (profile: UserProfile) => void }) {
+function SetupProfileDialog({ open, onDone, apiFetch }: {
+  open: boolean;
+  onDone: (profile: UserProfile) => void;
+  apiFetch: ApiFetch;
+}) {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -95,7 +96,6 @@ function SetupProfileDialog({ open, onDone }: { open: boolean; onDone: (profile:
     try {
       const profile = await apiFetch("/api/friends/profile", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username.trim(), displayName: displayName.trim() || null }),
       });
       toast({ title: "Profile created!" });
@@ -141,10 +141,12 @@ function SetupProfileDialog({ open, onDone }: { open: boolean; onDone: (profile:
 
 // ── Send Rec Dialog ───────────────────────────────────────────────────────────
 
-function SendRecDialog({ open, onClose, friends, preselectedTitle }: {
-  open: boolean; onClose: () => void;
+function SendRecDialog({ open, onClose, friends, preselectedTitle, apiFetch }: {
+  open: boolean;
+  onClose: () => void;
   friends: FriendEntry[];
   preselectedTitle?: string;
+  apiFetch: ApiFetch;
 }) {
   const [toUsername, setToUsername] = useState("");
   const [title, setTitle] = useState(preselectedTitle ?? "");
@@ -152,7 +154,9 @@ function SendRecDialog({ open, onClose, friends, preselectedTitle }: {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => { if (open) { setToUsername(""); setTitle(preselectedTitle ?? ""); setMessage(""); } }, [open, preselectedTitle]);
+  useEffect(() => {
+    if (open) { setToUsername(""); setTitle(preselectedTitle ?? ""); setMessage(""); }
+  }, [open, preselectedTitle]);
 
   const handleSend = async () => {
     if (!toUsername.trim() || !title.trim()) return;
@@ -160,7 +164,6 @@ function SendRecDialog({ open, onClose, friends, preselectedTitle }: {
     try {
       await apiFetch("/api/friends/recommendations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ toUsername: toUsername.trim(), title: title.trim(), message: message.trim() || null }),
       });
       toast({ title: "Recommendation sent! 🎉" });
@@ -215,10 +218,11 @@ function SendRecDialog({ open, onClose, friends, preselectedTitle }: {
 
 // ── Friend Library Modal ──────────────────────────────────────────────────────
 
-function FriendLibraryModal({ friend, onClose, onSendRec }: {
+function FriendLibraryModal({ friend, onClose, onSendRec, apiFetch }: {
   friend: FriendEntry;
   onClose: () => void;
   onSendRec: (title: string) => void;
+  apiFetch: ApiFetch;
 }) {
   const [library, setLibrary] = useState<FriendLibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -270,8 +274,7 @@ function FriendLibraryModal({ friend, onClose, onSendRec }: {
             <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border hover:border-primary/30 transition-colors group">
               {item.coverUrl
                 ? <img src={item.coverUrl} alt={item.title} className="w-10 h-14 object-cover rounded flex-shrink-0" />
-                : <div className="w-10 h-14 bg-muted rounded flex items-center justify-center flex-shrink-0"><BookMarked className="w-4 h-4 text-muted-foreground" /></div>
-              }
+                : <div className="w-10 h-14 bg-muted rounded flex items-center justify-center flex-shrink-0"><BookMarked className="w-4 h-4 text-muted-foreground" /></div>}
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{item.title}</p>
                 <p className="text-xs text-muted-foreground capitalize">{item.category} · {item.status}</p>
@@ -299,53 +302,47 @@ type Tab = "friends" | "requests" | "recs";
 
 export default function FriendsPage() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const { toast } = useToast();
+
+  const apiFetch: ApiFetch = useCallback(async (path, options) => {
+    const token = await getToken();
+    const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+    const res = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options?.headers ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(err.error ?? "Request failed");
+    }
+    return res.json();
+  }, [getToken]);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
-
   const [tab, setTab] = useState<Tab>("friends");
   const [friends, setFriends] = useState<FriendEntry[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [recs, setRecs] = useState<ReceivedRec[]>([]);
-
   const [addUsername, setAddUsername] = useState("");
   const [addLoading, setAddLoading] = useState(false);
-
   const [viewingFriend, setViewingFriend] = useState<FriendEntry | null>(null);
   const [sendRecOpen, setSendRecOpen] = useState(false);
   const [sendRecTitle, setSendRecTitle] = useState("");
 
-  const { getToken } = useAuth();
-
-    const apiFetch = async (path: string, options?: RequestInit) => {
-    const token = await getToken();
-    const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
-    const res = await fetch(`${baseUrl}${path}`, {
-        ...options,
-        headers: {
-        "Content-Type": "application/json",
-        ...(options?.headers ?? {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-    });
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(err.error ?? "Request failed");
-    }
-    return res.json();
-    };
-
-  // Load profile on mount
   useEffect(() => {
     apiFetch("/api/friends/profile/me")
       .then(setProfile)
       .catch(() => setShowSetup(true))
       .finally(() => setProfileLoading(false));
-  }, []);
+  }, [apiFetch]);
 
-  // Load data when profile exists
   useEffect(() => {
     if (!profile) return;
     loadAll();
@@ -372,7 +369,6 @@ export default function FriendsPage() {
     try {
       await apiFetch("/api/friends/request", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: addUsername.trim() }),
       });
       toast({ title: "Friend request sent!" });
@@ -424,7 +420,7 @@ export default function FriendsPage() {
   const pendingRequests = requests.length;
 
   const tabs: { id: Tab; label: string; icon: any; badge?: number }[] = [
-    { id: "friends", label: "Friends", icon: Users, badge: undefined },
+    { id: "friends", label: "Friends", icon: Users },
     { id: "requests", label: "Requests", icon: UserPlus, badge: pendingRequests || undefined },
     { id: "recs", label: "Recs Inbox", icon: Inbox, badge: unreadRecs || undefined },
   ];
@@ -439,7 +435,6 @@ export default function FriendsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-display text-3xl font-bold text-foreground">Friends</h1>
@@ -454,7 +449,6 @@ export default function FriendsPage() {
         </Button>
       </div>
 
-      {/* Add friend */}
       <div className="flex gap-2">
         <div className="relative flex-1 max-w-sm">
           <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -471,8 +465,7 @@ export default function FriendsPage() {
         </Button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1.5 border-b border-border pb-0">
+      <div className="flex gap-1.5 border-b border-border">
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={cn(
@@ -490,7 +483,6 @@ export default function FriendsPage() {
         ))}
       </div>
 
-      {/* Tab content */}
       {tab === "friends" && (
         <div className="space-y-3">
           {friends.length === 0 ? (
@@ -507,8 +499,7 @@ export default function FriendsPage() {
                 <p className="text-xs text-muted-foreground">@{f.friend?.username}</p>
               </div>
               <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs"
-                  onClick={() => setViewingFriend(f)}>
+                <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => setViewingFriend(f)}>
                   <BookOpen className="w-3.5 h-3.5" /> Library
                 </Button>
                 <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs"
@@ -543,7 +534,8 @@ export default function FriendsPage() {
                 <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleAccept(req.id)}>
                   <Check className="w-3.5 h-3.5" /> Accept
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground hover:text-destructive" onClick={() => handleReject(req.id)}>
+                <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => handleReject(req.id)}>
                   <X className="w-3.5 h-3.5" />
                 </Button>
               </div>
@@ -561,14 +553,11 @@ export default function FriendsPage() {
               <p className="text-sm mt-1">When friends send you recs, they'll appear here.</p>
             </div>
           ) : recs.map((rec) => (
-            <div key={rec.id}
-              className={cn("flex gap-3 p-4 rounded-xl border transition-colors",
-                rec.isRead ? "bg-card border-border" : "bg-primary/5 border-primary/30"
-              )}>
+            <div key={rec.id} className={cn("flex gap-3 p-4 rounded-xl border transition-colors",
+              rec.isRead ? "bg-card border-border" : "bg-primary/5 border-primary/30")}>
               {rec.coverUrl
                 ? <img src={rec.coverUrl} alt={rec.title} className="w-12 h-16 object-cover rounded flex-shrink-0" />
-                : <div className="w-12 h-16 bg-muted rounded flex items-center justify-center flex-shrink-0"><Heart className="w-5 h-5 text-muted-foreground" /></div>
-              }
+                : <div className="w-12 h-16 bg-muted rounded flex items-center justify-center flex-shrink-0"><Heart className="w-5 h-5 text-muted-foreground" /></div>}
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -582,9 +571,7 @@ export default function FriendsPage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   from <span className="text-foreground font-medium">@{rec.from?.username}</span>
                 </p>
-                {rec.message && (
-                  <p className="text-xs text-muted-foreground mt-1 italic">"{rec.message}"</p>
-                )}
+                {rec.message && <p className="text-xs text-muted-foreground mt-1 italic">"{rec.message}"</p>}
                 <div className="flex gap-2 mt-2">
                   {rec.readingUrl && (
                     <a href={rec.readingUrl} target="_blank" rel="noopener noreferrer">
@@ -606,14 +593,14 @@ export default function FriendsPage() {
         </div>
       )}
 
-      {/* Modals */}
-      <SetupProfileDialog open={showSetup} onDone={(p) => { setProfile(p); setShowSetup(false); loadAll(); }} />
+      <SetupProfileDialog open={showSetup} onDone={(p) => { setProfile(p); setShowSetup(false); loadAll(); }} apiFetch={apiFetch} />
 
       {viewingFriend && (
         <FriendLibraryModal
           friend={viewingFriend}
           onClose={() => setViewingFriend(null)}
           onSendRec={(title) => { setViewingFriend(null); setSendRecTitle(title); setSendRecOpen(true); }}
+          apiFetch={apiFetch}
         />
       )}
 
@@ -622,6 +609,7 @@ export default function FriendsPage() {
         onClose={() => setSendRecOpen(false)}
         friends={friends}
         preselectedTitle={sendRecTitle}
+        apiFetch={apiFetch}
       />
     </div>
   );
