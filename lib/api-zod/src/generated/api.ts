@@ -52,6 +52,7 @@ export const ListMediaResponseItem = zod.object({
   customCoverUrl: zod.string().nullish(),
   tier: zod.enum(["S", "A", "B", "C", "D", "F"]).nullish(),
   rating: zod.number().nullish(),
+  reviewText: z.string().optional().nullable(),
   genres: zod.array(zod.string()),
   notes: zod.string().nullish(),
   hasUpdate: zod.boolean(),

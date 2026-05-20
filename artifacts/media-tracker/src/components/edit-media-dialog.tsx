@@ -121,6 +121,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
       notes: "",
       coverUrl: "",
       readingUrl: "",
+      reviewText: "",
     },
   });
 
@@ -134,6 +135,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         notes: media.notes || "",
         coverUrl: media.coverUrl || "",
         readingUrl: media.readingUrl || "",
+        reviewText: (media as any).reviewText || "",
       });
       setDropReason(dropReasons?.[media.id] ?? "");
       setRatings(loadRatings(media.id));
@@ -171,7 +173,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
     saveRatings(media.id, ratings);
 
     updateMedia.mutate({
-      id: media.id, // Ensure this is the correct numeric ID
+      id: media.id,
       data: {
         title: values.title,
         category: values.category,
