@@ -111,6 +111,15 @@ router.get("/media/stats", async (req, res): Promise<void> => {
   });
 });
 
+// GET /media/recommendations
+router.get("/media/recommendations", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  // Return an empty array for now to stop the 404 error
+  res.json([]); 
+});
+
 // GET /media
 router.get("/media", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);

@@ -243,7 +243,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
 
             <div className="pt-2 border-t border-border/50">
               <div className="flex items-center justify-between mb-2">
-                <FormLabel>Cover Image</FormLabel>
+                <label className="text-sm font-medium leading-none">Cover Image</label>
                 <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
                   onClick={() => setCoverSearch({ title: watchedTitle, category: watchedCategory })}
                   disabled={!watchedTitle || coverFetching}>
