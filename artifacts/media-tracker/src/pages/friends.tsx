@@ -64,21 +64,10 @@ interface FriendLibraryItem {
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
+import { customFetch } from "@workspace/api-client-react";
+
 async function apiFetch(path: string, options?: RequestInit) {
-  const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
-  const res = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers ?? {}),
-    },
-    credentials: "include",
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(err.error ?? "Request failed");
-  }
-  return res.json();
+  return customFetch(path, options);
 }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────

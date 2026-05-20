@@ -17,9 +17,6 @@ import MomentsPage from "@/pages/moments";
 import QuotesPage from "@/pages/quotes";
 import FriendsPage from "@/pages/friends";
 
-// inside the Layout <Switch>:
-<Route path="/friends" component={FriendsPage} />
-
 const queryClient = new QueryClient();
 
 function ProtectedRouter() {
@@ -76,6 +73,7 @@ function ProtectedRouter() {
         <Route path="/bl-vault" component={BLVault} />
         <Route path="/moments" component={MomentsPage} />
         <Route path="/quotes" component={QuotesPage} />
+        <Route path="/friends" component={FriendsPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

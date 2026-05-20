@@ -365,15 +365,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const [friendBadge, setFriendBadge] = useState(0);
 
+import { customFetch } from "@workspace/api-client-react";
+
 useEffect(() => {
   const fetchBadge = async () => {
     try {
-      const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
-      const res = await fetch(`${baseUrl}/api/friends/notifications/count`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setFriendBadge(data.total ?? 0);
-      }
+      const data = await customFetch<{ total: number }>("/api/friends/notifications/count");
+      setFriendBadge(data.total ?? 0);
     } catch {}
   };
   if (user?.id) {
