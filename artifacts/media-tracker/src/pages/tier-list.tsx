@@ -130,7 +130,7 @@ export default function TierList() {
                   key={tier}
                   data-testid={`tier-row-${tier}`}
                   className={cn(
-                    "flex flex-col rounded-xl border transition-all overflow-hidden",
+                    "flex flex-col rounded-xl border transition-all overflow-hidden backdrop-blur-md bg-card/70",
                     TIER_CONFIG[tier].bg,
                     dragOverTier === tier && "ring-2 ring-primary/50 scale-[1.01]"
                   )}
@@ -223,7 +223,7 @@ export default function TierList() {
           </div>
 
           {/* Unranked Pool Sidebar */}
-          <div className="w-full lg:w-80 flex-shrink-0 sticky top-4 bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col max-h-[calc(100vh-2rem)]">
+          <div className="w-full lg:w-80 flex-shrink-0 sticky top-4 bg-card/80 backdrop-blur-md border border-border rounded-xl p-4 shadow-sm flex flex-col max-h-[calc(100vh-2rem)]">
             <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
               <h3 className="font-semibold text-sm">Unranked Pool</h3>
               <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium">
