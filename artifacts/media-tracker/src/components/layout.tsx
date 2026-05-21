@@ -6,7 +6,7 @@ import {
   Library, ListPlus, LayoutList, Star, AlertTriangle,
   Menu, BookOpen, Heart, Lock, X, Plus, Trash2, Globe,
   Settings, Tv, Clapperboard, Sparkles, Quote, LogOut,
-  Palette, Camera, Upload, Users, MessageSquare
+  Palette, Camera, Upload, Users, MessageSquare, BarChart2, ScrollText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ function saveSites(sites: ReadingSite[]) {
 // ── Background Settings ───────────────────────────────────────────────────────
 export interface BgSettings {
   type: "none" | "solid" | "gradient" | "image";
-  value: string; // hex color, gradient string, or image URL/base64
+  value: string;
 }
 const DEFAULT_BG: BgSettings = { type: "none", value: "" };
 
@@ -60,7 +60,6 @@ function bgStyle(bg: BgSettings): React.CSSProperties {
   return {};
 }
 
-// ── Preset gradients ──────────────────────────────────────────────────────────
 const PRESET_GRADIENTS = [
   { label: "Midnight", value: "linear-gradient(135deg, #0f0c29, #302b63, #24243e)" },
   { label: "Aurora",   value: "linear-gradient(135deg, #0f2027, #203a43, #2c5364)" },
@@ -69,7 +68,6 @@ const PRESET_GRADIENTS = [
   { label: "Sunset",   value: "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)" },
   { label: "Forest",   value: "linear-gradient(135deg, #0a1628, #0d2137, #0a2e1e)" },
 ];
-
 const PRESET_COLORS = [
   "#0f0f11", "#1a1a2e", "#16213e", "#0d0d1a",
   "#1a0a0a", "#0a1a0a", "#1a1a0a", "#0a0a1a",
@@ -86,18 +84,12 @@ function BgDialog({ open, onClose, userId, bg, onChange }: {
   const [imgUrl, setImgUrl] = useState(bg.type === "image" && !bg.value.startsWith("data:") ? bg.value : "");
   const { toast } = useToast();
 
-  const apply = (newBg: BgSettings) => {
-    onChange(newBg);
-    saveBg(userId, newBg);
-  };
+  const apply = (newBg: BgSettings) => { onChange(newBg); saveBg(userId, newBg); };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Max 5MB", variant: "destructive" });
-      return;
-    }
+    if (file.size > 5 * 1024 * 1024) { toast({ title: "File too large", description: "Max 5MB", variant: "destructive" }); return; }
     const reader = new FileReader();
     reader.onload = () => apply({ type: "image", value: reader.result as string });
     reader.readAsDataURL(file);
@@ -111,24 +103,21 @@ function BgDialog({ open, onClose, userId, bg, onChange }: {
             <Palette className="w-5 h-5 text-primary" /> Customize Background
           </DialogTitle>
         </DialogHeader>
-
-        {/* Tabs */}
         <div className="flex gap-1.5 flex-wrap">
           {(["none", "solid", "gradient", "image"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border capitalize transition-all",
-                tab === t ? "bg-primary text-primary-foreground border-transparent" : "bg-card border-border text-muted-foreground hover:text-foreground"
-              )}>{t === "none" ? "Default" : t}</button>
+                tab === t ? "bg-primary text-primary-foreground border-transparent" : "bg-card border-border text-muted-foreground hover:text-foreground")}>
+              {t === "none" ? "Default" : t}
+            </button>
           ))}
         </div>
-
         {tab === "none" && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">Use the default app background.</p>
             <Button className="w-full" onClick={() => { apply(DEFAULT_BG); onClose(); }}>Apply Default</Button>
           </div>
         )}
-
         {tab === "solid" && (
           <div className="space-y-3">
             <div className="grid grid-cols-4 gap-2">
@@ -146,7 +135,6 @@ function BgDialog({ open, onClose, userId, bg, onChange }: {
             </div>
           </div>
         )}
-
         {tab === "gradient" && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
@@ -160,12 +148,10 @@ function BgDialog({ open, onClose, userId, bg, onChange }: {
             </div>
           </div>
         )}
-
         {tab === "image" && (
           <div className="space-y-3">
             <div className="flex gap-2">
-              <Input placeholder="https://..." value={imgUrl} onChange={(e) => setImgUrl(e.target.value)}
-                className="flex-1 text-xs" />
+              <Input placeholder="https://..." value={imgUrl} onChange={(e) => setImgUrl(e.target.value)} className="flex-1 text-xs" />
               <Button size="sm" onClick={() => { if (imgUrl) { apply({ type: "image", value: imgUrl }); onClose(); } }}>Use URL</Button>
             </div>
             <div className="text-center text-xs text-muted-foreground">or</div>
@@ -200,64 +186,41 @@ function ProfileSection({ onOpenBg }: { onOpenBg: () => void }) {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Max 5MB", variant: "destructive" });
-      return;
-    }
+    if (file.size > 5 * 1024 * 1024) { toast({ title: "File too large", description: "Max 5MB", variant: "destructive" }); return; }
     setUploading(true);
-    try {
-      await user.setProfileImage({ file });
-      toast({ title: "Profile picture updated!" });
-    } catch {
-      toast({ title: "Failed to upload", variant: "destructive" });
-    } finally {
-      setUploading(false);
-    }
+    try { await user.setProfileImage({ file }); toast({ title: "Profile picture updated!" }); }
+    catch { toast({ title: "Failed to upload", variant: "destructive" }); }
+    finally { setUploading(false); }
   };
 
   const initials = user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ?? "?";
 
   return (
     <div className="px-3 pb-4 flex-shrink-0 border-t border-border pt-3 space-y-2">
-      {/* Profile row */}
       <div className="flex items-center gap-2.5 px-1">
         <div className="relative group/avatar flex-shrink-0">
           <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center ring-2 ring-border">
-            {user?.imageUrl ? (
-              <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-xs font-bold text-primary">{initials}</span>
-            )}
+            {user?.imageUrl ? <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
+              : <span className="text-xs font-bold text-primary">{initials}</span>}
           </div>
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center"
-          >
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
             <Camera className="w-3 h-3 text-white" />
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium truncate">
-            {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? "User"}
-          </p>
-          <p className="text-[10px] text-muted-foreground truncate">
-            {user?.emailAddresses?.[0]?.emailAddress ?? ""}
-          </p>
+          <p className="text-xs font-medium truncate">{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? "User"}</p>
+          <p className="text-[10px] text-muted-foreground truncate">{user?.emailAddresses?.[0]?.emailAddress ?? ""}</p>
         </div>
       </div>
-
-      {/* Actions */}
       <button onClick={onOpenBg}
         className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 rounded-md transition-colors">
-        <Palette className="w-3.5 h-3.5" />
-        Customize Background
+        <Palette className="w-3.5 h-3.5" /> Customize Background
       </button>
       <button onClick={() => signOut({ redirectUrl: "/sign-in" })}
         className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors">
-        <LogOut className="w-3.5 h-3.5" />
-        Sign out
+        <LogOut className="w-3.5 h-3.5" /> Sign out
       </button>
     </div>
   );
@@ -334,10 +297,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const userId = user?.id ?? "guest";
   const [bg, setBg] = useState<BgSettings>(DEFAULT_BG);
 
-  // Load bg only once user is actually loaded
-  useEffect(() => {
-    if (user?.id) setBg(loadBg(user.id));
-  }, [user?.id]);
+  useEffect(() => { if (user?.id) setBg(loadBg(user.id)); }, [user?.id]);
 
   const [blUnlocked, setBlUnlocked] = useState(() => {
     try { return localStorage.getItem("ovbl") === "1"; } catch { return false; }
@@ -353,13 +313,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setLogoClicks((prev) => {
       const next = prev + 1;
       if (next >= 5) {
-        if (blUnlocked) {
-          setBlUnlocked(false);
-          try { localStorage.removeItem("ovbl"); } catch {}
-        } else {
-          setBlUnlocked(true);
-          try { localStorage.setItem("ovbl", "1"); } catch {}
-        }
+        if (blUnlocked) { setBlUnlocked(false); try { localStorage.removeItem("ovbl"); } catch {} }
+        else { setBlUnlocked(true); try { localStorage.setItem("ovbl", "1"); } catch {} }
         return 0;
       }
       return next;
@@ -367,27 +322,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const [friendBadge, setFriendBadge] = useState(0);
-
-useEffect(() => {
-  const fetchBadge = async () => {
-    try {
-      const token = await getToken();
-      const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
-      const res = await fetch(`${baseUrl}/api/friends/notifications/count`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setFriendBadge(data.total ?? 0);
-      }
-    } catch {}
-  };
-  if (user?.id) {
-    fetchBadge();
-    const interval = setInterval(fetchBadge, 60_000);
-    return () => clearInterval(interval);
-  }
-}, [user?.id]);
+  useEffect(() => {
+    const fetchBadge = async () => {
+      try {
+        const token = await getToken();
+        const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+        const res = await fetch(`${baseUrl}/api/friends/notifications/count`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) { const data = await res.json(); setFriendBadge(data.total ?? 0); }
+      } catch {}
+    };
+    if (user?.id) { fetchBadge(); const interval = setInterval(fetchBadge, 60_000); return () => clearInterval(interval); }
+  }, [user?.id]);
 
   const mainNavItems = [
     { href: "/", label: "Library", icon: Library },
@@ -403,32 +350,30 @@ useEffect(() => {
   const extraNavItems = [
     { href: "/moments", label: "Fav Moments", icon: Sparkles },
     { href: "/quotes", label: "Quotes", icon: Quote },
+    { href: "/reading-log", label: "Reading Log", icon: ScrollText },
+    { href: "/stats", label: "Stats", icon: BarChart2 },
   ];
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" : location.startsWith(href);
 
   const NavLink = ({ href, label, icon: Icon, className, badge }: {
-  href: string; label: string; icon: any; className?: string; badge?: number;
-}) => (
-  <Link href={href}
-    className={cn(
-      "flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors group",
-      isActive(href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent/50",
-      className
-    )}>
-    <Icon className={cn("w-5 h-5 mr-3 flex-shrink-0 transition-colors",
-      isActive(href) ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
-      className
-    )} />
-    {label}
-    {badge ? (
-      <span className="ml-auto bg-primary text-primary-foreground text-[10px] rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center leading-none">
-        {badge}
-      </span>
-    ) : null}
-  </Link>
-);
+    href: string; label: string; icon: any; className?: string; badge?: number;
+  }) => (
+    <Link href={href}
+      className={cn(
+        "flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors group",
+        isActive(href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent/50",
+        className
+      )}>
+      <Icon className={cn("w-5 h-5 mr-3 flex-shrink-0 transition-colors",
+        isActive(href) ? "text-primary" : "text-muted-foreground group-hover:text-foreground", className)} />
+      {label}
+      {badge ? (
+        <span className="ml-auto bg-primary text-primary-foreground text-[10px] rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center leading-none">{badge}</span>
+      ) : null}
+    </Link>
+  );
 
   const SidebarContent = () => (
     <>
@@ -446,8 +391,7 @@ useEffect(() => {
         {blUnlocked && (
           <Link href="/bl-vault"
             className={cn("flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors group mt-2",
-              location === "/bl-vault" ? "bg-rose-500/15 text-rose-400" : "text-rose-400/60 hover:bg-rose-500/10 hover:text-rose-400"
-            )}>
+              location === "/bl-vault" ? "bg-rose-500/15 text-rose-400" : "text-rose-400/60 hover:bg-rose-500/10 hover:text-rose-400")}>
             <Heart className={cn("w-4 h-4 mr-3 flex-shrink-0", location === "/bl-vault" ? "text-rose-400 fill-rose-400" : "text-rose-400/50")} />
             <span className="opacity-80">Secret Vault</span>
             <Lock className="w-3 h-3 ml-auto opacity-40" />
@@ -462,8 +406,7 @@ useEffect(() => {
         <div className="pt-3 mt-1 border-t border-border">
           <Link href="/normie"
             className={cn("flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors group",
-              location.startsWith("/normie") ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-            )}>
+              location.startsWith("/normie") ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent/50")}>
             <Clapperboard className={cn("w-5 h-5 mr-3 flex-shrink-0", location.startsWith("/normie") ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
             The Normie Stuff
           </Link>
@@ -481,8 +424,7 @@ useEffect(() => {
       <div className="px-3 pb-2 flex-shrink-0">
         <button onClick={() => setSitesOpen(true)}
           className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 rounded-md transition-colors">
-          <Settings className="w-3.5 h-3.5" />
-          Manage Reading Sites
+          <Settings className="w-3.5 h-3.5" /> Manage Reading Sites
         </button>
       </div>
 
@@ -490,13 +432,8 @@ useEffect(() => {
     </>
   );
 
-  // Sidebar tint based on bg
   const sidebarStyle: React.CSSProperties = bg.type !== "none" ? {
-    backgroundColor: bg.type === "solid"
-      ? bg.value + "cc"
-      : bg.type === "gradient"
-      ? undefined
-      : undefined,
+    backgroundColor: bg.type === "solid" ? bg.value + "cc" : undefined,
     backdropFilter: bg.type !== "none" ? "blur(20px)" : undefined,
   } : {};
 
@@ -521,11 +458,7 @@ useEffect(() => {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative" style={bgStyle(bg)}>
-        {/* Overlay to ensure text readability over any background */}
-        {bg.type !== "none" && (
-          <div className="absolute inset-0 bg-background/40 pointer-events-none" />
-        )}
-
+        {bg.type !== "none" && <div className="absolute inset-0 bg-background/40 pointer-events-none" />}
         <header className="relative h-16 flex items-center justify-between px-4 border-b border-border md:hidden flex-shrink-0 bg-background/80 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setMobileSidebarOpen(true)}>
@@ -535,7 +468,6 @@ useEffect(() => {
             <h1 className="font-display font-bold text-lg text-primary">OtakuVault</h1>
           </div>
         </header>
-
         <div className="relative flex-1 overflow-auto p-4 md:p-8">
           <div className="mx-auto max-w-6xl">{children}</div>
         </div>
