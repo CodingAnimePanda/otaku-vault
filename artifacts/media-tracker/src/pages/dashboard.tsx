@@ -121,7 +121,7 @@ function getSiteLabel(url: string | null | undefined): string {
 
 type CardLayout = "grid" | "list" | "covers";
 type SortOption = "alpha" | "recent" | "rating";
-type StatusTab = "reading" | "completed" | "dropped" | "all";
+type StatusTab = "reading" | "paused" | "completed" | "dropped" | "all";
 
 // ── Genre Tags ────────────────────────────────────────────────────────────────
 function GenreTags({ genres }: { genres: string[] }) {
@@ -447,12 +447,12 @@ export default function Dashboard() {
   ), [mediaArray, favorites, applySort]);
 
   const tabItems = useMemo(() => {
-    let base = mediaArray;
-    if (statusTab === "reading") base = mediaArray.filter((m) => m.status === "reading" || m.status === "watching" || m.status === "paused");
-    else if (statusTab === "completed") base = mediaArray.filter((m) => m.status === "completed");
-    else if (statusTab === "dropped") base = mediaArray.filter((m) => m.status === "dropped");
-    return applySort(base);
-  }, [mediaArray, statusTab, applySort]);
+    if (statusTab === "reading") return sortAlpha(mediaArray.filter((m) => m.status === "reading" || m.status === "watching"));
+    if (statusTab === "paused") return sortAlpha(mediaArray.filter((m) => m.status === "paused"));
+    if (statusTab === "completed") return sortAlpha(mediaArray.filter((m) => m.status === "completed"));
+    if (statusTab === "dropped") return sortAlpha(mediaArray.filter((m) => m.status === "dropped"));
+    return sortAlpha(mediaArray);
+  }, [mediaArray, statusTab]);
 
   const featured = continueItems[0];
   const restContinue = continueItems.slice(1);
@@ -539,8 +539,10 @@ export default function Dashboard() {
   // Small grid for non-"all" tabs
   const sectionCardGrid = (items: any[]) => renderCards(items);
 
+  // Replace the entire statusTabs array with this:
   const statusTabs: { id: StatusTab; label: string; icon: React.ReactNode; count: number }[] = [
-    { id: "reading", label: "Reading / Watching", icon: <PlayCircle className="w-4 h-4" />, count: mediaArray.filter((m) => m.status === "reading" || m.status === "watching" || m.status === "paused").length },
+    { id: "reading", label: "Reading / Watching", icon: <PlayCircle className="w-4 h-4" />, count: mediaArray.filter((m) => m.status === "reading" || m.status === "watching").length },
+    { id: "paused", label: "Paused", icon: <Clock className="w-4 h-4" />, count: mediaArray.filter((m) => m.status === "paused").length },
     { id: "completed", label: "Completed", icon: <Star className="w-4 h-4" />, count: mediaArray.filter((m) => m.status === "completed").length },
     { id: "dropped", label: "Dropped", icon: <XCircle className="w-4 h-4" />, count: mediaArray.filter((m) => m.status === "dropped").length },
     { id: "all", label: "All Media", icon: <BookOpen className="w-4 h-4" />, count: mediaArray.length },

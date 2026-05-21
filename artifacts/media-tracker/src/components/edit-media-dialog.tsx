@@ -37,7 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ExternalLink, Link, Pencil, Heart, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
+const STATUSES = ["reading", "watching", "completed", "paused", "dropped"] as const;
 const LIST_TYPES = ["library", "to_read", "avoid"] as const;
 const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime"] as const;
 
@@ -341,7 +341,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                 { key: "character", label: "Character Depth" },
                 { key: "concept", label: "Concept" },
                 { key: "originality", label: "Originality" },
-                { key: "plot", label: "Plot" }, // ADDED HERE
+                { key: "plot", label: "Plot" },
                 { key: "translation", label: "Translation (Optional, affects less)" },
               ].map((cat) => (
                 <div key={cat.key} className="space-y-1">
