@@ -6,7 +6,7 @@ import {
   Library, ListPlus, LayoutList, Star, AlertTriangle,
   Menu, BookOpen, Heart, Lock, X, Plus, Trash2, Globe,
   Settings, Tv, Clapperboard, Sparkles, Quote, LogOut,
-  Palette, Camera, Upload, Users, MessageSquare, BarChart2, ScrollText
+  Palette, Camera, Upload, Users, MessageSquare, BarChart2, ScrollText, UserCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -348,9 +348,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   const extraNavItems = [
+    { href: "/profile", label: "Profile", icon: UserCircle },
     { href: "/moments", label: "Fav Moments", icon: Sparkles },
     { href: "/quotes", label: "Quotes", icon: Quote },
-    { href: "/reading-log", label: "Reading Log", icon: ScrollText },
     { href: "/stats", label: "Stats", icon: BarChart2 },
   ];
 

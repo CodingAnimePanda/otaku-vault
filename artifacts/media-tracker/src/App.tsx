@@ -18,7 +18,7 @@ import QuotesPage from "@/pages/quotes";
 import FriendsPage from "@/pages/friends";
 import ReviewsPage from "@/pages/reviews";
 import StatsPage from "@/pages/stats";
-import ReadingLogPage from "@/pages/reading-log";
+import ProfilePage from "@/pages/profile";
 
 const queryClient = new QueryClient();
 
@@ -75,7 +75,7 @@ function ProtectedRouter() {
         <Route path="/friends" component={FriendsPage} />
         <Route path="/reviews" component={ReviewsPage} />
         <Route path="/stats" component={StatsPage} />
-        <Route path="/reading-log" component={ReadingLogPage} />
+        <Route path="/profile" component={ProfilePage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
