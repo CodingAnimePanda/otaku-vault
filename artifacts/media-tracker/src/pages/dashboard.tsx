@@ -447,12 +447,12 @@ export default function Dashboard() {
   ), [mediaArray, favorites, applySort]);
 
   const tabItems = useMemo(() => {
-    if (statusTab === "reading") return sortAlpha(mediaArray.filter((m) => m.status === "reading" || m.status === "watching"));
-    if (statusTab === "paused") return sortAlpha(mediaArray.filter((m) => m.status === "paused"));
-    if (statusTab === "completed") return sortAlpha(mediaArray.filter((m) => m.status === "completed"));
-    if (statusTab === "dropped") return sortAlpha(mediaArray.filter((m) => m.status === "dropped"));
-    return sortAlpha(mediaArray);
-  }, [mediaArray, statusTab]);
+    if (statusTab === "reading") return applySort(mediaArray.filter((m) => m.status === "reading" || m.status === "watching"));
+    if (statusTab === "paused") return applySort(mediaArray.filter((m) => m.status === "paused"));
+    if (statusTab === "completed") return applySort(mediaArray.filter((m) => m.status === "completed"));
+    if (statusTab === "dropped") return applySort(mediaArray.filter((m) => m.status === "dropped"));
+    return applySort(mediaArray);
+  }, [mediaArray, statusTab, applySort]);
 
   const featured = continueItems[0];
   const restContinue = continueItems.slice(1);
@@ -539,7 +539,6 @@ export default function Dashboard() {
   // Small grid for non-"all" tabs
   const sectionCardGrid = (items: any[]) => renderCards(items);
 
-  // Replace the entire statusTabs array with this:
   const statusTabs: { id: StatusTab; label: string; icon: React.ReactNode; count: number }[] = [
     { id: "reading", label: "Reading / Watching", icon: <PlayCircle className="w-4 h-4" />, count: mediaArray.filter((m) => m.status === "reading" || m.status === "watching").length },
     { id: "paused", label: "Paused", icon: <Clock className="w-4 h-4" />, count: mediaArray.filter((m) => m.status === "paused").length },
