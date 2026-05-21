@@ -198,6 +198,26 @@ router.put("/media/:id", async (req, res): Promise<void> => {
   res.json(serializeMedia(updated));
 });
 
+// PUT /media/:id/tier
+router.put("/media/:id/tier", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const params = UpdateMediaTierParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  const parsed = UpdateMediaTierBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [updated] = await db.update(mediaTable)
+    .set({ tier: parsed.data.tier })
+    .where(and(eq(mediaTable.id, params.data.id), eq(mediaTable.userId, userId)))
+    .returning();
+
+  if (!updated) { res.status(404).json({ error: "Media not found" }); return; }
+  res.json(serializeMedia(updated));
+});
+
 // DELETE /media/:id
 router.delete("/media/:id", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
