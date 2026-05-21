@@ -1,11 +1,8 @@
 // artifacts/media-tracker/src/pages/bl-vault.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  useListMedia,
-  useDeleteMedia,
-  useUpdateMedia,
-  getListMediaQueryKey,
-  useCreateMedia,
+  useListMedia, useDeleteMedia, useUpdateMedia,
+  getListMediaQueryKey, useCreateMedia,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Heart, Lock, Plus, Trash2, BookOpen, Loader2, Search, Check, Pencil } from "lucide-react";
+import { Heart, Lock, Plus, Trash2, BookOpen, Loader2, Search, Check, Pencil, Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn, proxyImage } from "@/lib/utils";
 import { useForm } from "react-hook-form";
@@ -33,6 +30,127 @@ import { EditMediaDialog } from "@/components/edit-media-dialog";
 const CATEGORIES = ["webtoon", "manhwa", "manga", "anime"] as const;
 const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
 
+const STATUS_LABELS: Record<string, string> = {
+  reading: "Reading", watching: "Watching", completed: "Completed",
+  paused: "Paused", dropped: "Dropped", plan_to_read: "Plan to read",
+};
+
+// ── Password helpers ──────────────────────────────────────────────────────────
+const PW_KEY = "ov_bl_pw";
+const SESSION_KEY = "ov_bl_unlocked_session";
+
+function getStoredHash(): string | null {
+  try { return localStorage.getItem(PW_KEY); } catch { return null; }
+}
+function hashPassword(pw: string): string {
+  // Simple deterministic hash (not crypto, but good enough for this use case)
+  let h = 0;
+  for (let i = 0; i < pw.length; i++) h = (Math.imul(31, h) + pw.charCodeAt(i)) | 0;
+  return String(h);
+}
+function setStoredHash(pw: string) {
+  try { localStorage.setItem(PW_KEY, hashPassword(pw)); } catch {}
+}
+function checkPassword(pw: string): boolean {
+  const stored = getStoredHash();
+  if (!stored) return true; // no password set yet
+  return hashPassword(pw) === stored;
+}
+function setSessionUnlocked() {
+  try { sessionStorage.setItem(SESSION_KEY, "1"); } catch {}
+}
+function isSessionUnlocked(): boolean {
+  try { return sessionStorage.getItem(SESSION_KEY) === "1"; } catch { return false; }
+}
+function lockSession() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+}
+
+// ── Password Gate ─────────────────────────────────────────────────────────────
+function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
+  const [pw, setPw] = useState("");
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
+  const [isSettingUp, setIsSettingUp] = useState(!getStoredHash());
+  const [confirmPw, setConfirmPw] = useState("");
+  const { toast } = useToast();
+
+  const handleSubmit = () => {
+    if (isSettingUp) {
+      if (pw.length < 1) { setError("Please enter a password."); return; }
+      if (pw !== confirmPw) { setError("Passwords don't match."); return; }
+      setStoredHash(pw);
+      setSessionUnlocked();
+      toast({ title: "Password set!", description: "Your vault is now password protected." });
+      onUnlock();
+    } else {
+      if (checkPassword(pw)) {
+        setSessionUnlocked();
+        onUnlock();
+      } else {
+        setError("Wrong password. Try again.");
+        setPw("");
+      }
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh]">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center mx-auto">
+            {isSettingUp ? <KeyRound className="w-8 h-8 text-rose-400" /> : <Lock className="w-8 h-8 text-rose-400" />}
+          </div>
+          <div>
+            <h2 className="text-2xl font-display font-bold text-rose-400">
+              {isSettingUp ? "Set a Password" : "Secret Vault"}
+            </h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              {isSettingUp ? "Choose a password to protect your vault." : "Enter your password to continue."}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="relative">
+            <Input
+              type={show ? "text" : "password"}
+              placeholder={isSettingUp ? "Choose a password" : "Enter password"}
+              value={pw}
+              onChange={(e) => { setPw(e.target.value); setError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              className="pr-10 border-rose-500/20 focus-visible:ring-rose-500/30"
+              autoFocus
+            />
+            <button onClick={() => setShow(!show)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+              {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {isSettingUp && (
+            <Input
+              type={show ? "text" : "password"}
+              placeholder="Confirm password"
+              value={confirmPw}
+              onChange={(e) => { setConfirmPw(e.target.value); setError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              className="border-rose-500/20 focus-visible:ring-rose-500/30"
+            />
+          )}
+
+          {error && <p className="text-xs text-red-400">{error}</p>}
+
+          <Button onClick={handleSubmit} className="w-full bg-rose-500 hover:bg-rose-600 text-white gap-2">
+            {isSettingUp ? <><ShieldCheck className="w-4 h-4" /> Set Password & Enter</> : <><Lock className="w-4 h-4" /> Unlock Vault</>}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Add Dialog ────────────────────────────────────────────────────────────────
 const addSchema = z.object({
   title: z.string().min(1, "Title is required"),
   category: z.enum(CATEGORIES),
@@ -42,11 +160,6 @@ const addSchema = z.object({
   customCoverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 type AddFormValues = z.infer<typeof addSchema>;
-
-const STATUS_LABELS: Record<string, string> = {
-  reading: "Reading", watching: "Watching", completed: "Completed",
-  paused: "Paused", dropped: "Dropped", plan_to_read: "Plan to read",
-};
 
 function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
@@ -95,8 +208,7 @@ function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto border-rose-500/20">
         <DialogHeader>
           <DialogTitle className="font-display text-xl flex items-center gap-2">
-            <Heart className="w-5 h-5 text-rose-400 fill-rose-400" />
-            Add to Secret Vault
+            <Heart className="w-5 h-5 text-rose-400 fill-rose-400" /> Add to Secret Vault
           </DialogTitle>
         </DialogHeader>
         <Form {...form}>
@@ -133,8 +245,7 @@ function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
                 <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                   onClick={() => watchedTitle && setCoverSearch({ title: watchedTitle, category: watchedCategory })}
                   disabled={!watchedTitle || coverFetching}>
-                  {coverFetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
-                  Search
+                  {coverFetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />} Search
                 </Button>
               </div>
               {Array.isArray(coverResults) && coverResults.length > 0 && (
@@ -178,16 +289,67 @@ function AddBLDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
   );
 }
 
+// ── Change Password Dialog ────────────────────────────────────────────────────
+function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
+  const { toast } = useToast();
+
+  const handleChange = () => {
+    if (!checkPassword(current)) { setError("Current password is wrong."); return; }
+    if (next.length < 1) { setError("New password can't be empty."); return; }
+    if (next !== confirm) { setError("New passwords don't match."); return; }
+    setStoredHash(next);
+    toast({ title: "Password changed!" });
+    setCurrent(""); setNext(""); setConfirm(""); setError("");
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm border-rose-500/20">
+        <DialogHeader>
+          <DialogTitle className="font-display text-lg flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-rose-400" /> Change Password
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input type={show ? "text" : "password"} placeholder="Current password" value={current}
+            onChange={(e) => { setCurrent(e.target.value); setError(""); }} className="border-rose-500/20" />
+          <Input type={show ? "text" : "password"} placeholder="New password" value={next}
+            onChange={(e) => { setNext(e.target.value); setError(""); }} className="border-rose-500/20" />
+          <Input type={show ? "text" : "password"} placeholder="Confirm new password" value={confirm}
+            onChange={(e) => { setConfirm(e.target.value); setError(""); }} className="border-rose-500/20" />
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} className="rounded" />
+            Show passwords
+          </label>
+          {error && <p className="text-xs text-red-400">{error}</p>}
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button className="flex-1 bg-rose-500 hover:bg-rose-600 text-white" onClick={handleChange}>Save</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BLVault() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any | null>(null);
+  const [changePwOpen, setChangePwOpen] = useState(false);
+  const [unlocked, setUnlocked] = useState(isSessionUnlocked);
 
   const { data: items, isLoading } = useListMedia({ listType: "bl" });
   const deleteMedia = useDeleteMedia();
   const updateMedia = useUpdateMedia();
-
   const itemsArray = Array.isArray(items) ? items : [];
 
   const handleDelete = (id: number) => {
@@ -209,8 +371,15 @@ export default function BLVault() {
     });
   };
 
+  const handleLock = () => { lockSession(); setUnlocked(false); };
+
+  if (!unlocked) {
+    return <PasswordGate onUnlock={() => setUnlocked(true)} />;
+  }
+
   return (
     <div className="space-y-6">
+      {/* Header banner */}
       <div className="relative rounded-2xl overflow-hidden border border-rose-500/20 bg-gradient-to-br from-rose-500/10 via-pink-500/5 to-transparent p-6">
         <div className="absolute top-0 right-0 w-40 h-40 bg-rose-500/10 rounded-full -translate-y-10 translate-x-10 blur-2xl" />
         <div className="relative flex items-center justify-between">
@@ -228,9 +397,19 @@ export default function BLVault() {
               </p>
             </div>
           </div>
-          <Button onClick={() => setAddOpen(true)} className="bg-rose-500 hover:bg-rose-600 text-white gap-2 shadow-lg shadow-rose-500/20">
-            <Plus className="w-4 h-4" /> Add
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setChangePwOpen(true)}
+              className="gap-1.5 text-xs border-rose-500/20 text-rose-400 hover:bg-rose-500/10">
+              <KeyRound className="w-3.5 h-3.5" /> Password
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLock}
+              className="gap-1.5 text-xs border-rose-500/20 text-rose-400 hover:bg-rose-500/10">
+              <Lock className="w-3.5 h-3.5" /> Lock
+            </Button>
+            <Button onClick={() => setAddOpen(true)} className="bg-rose-500 hover:bg-rose-600 text-white gap-2 shadow-lg shadow-rose-500/20">
+              <Plus className="w-4 h-4" /> Add
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -309,6 +488,7 @@ export default function BLVault() {
 
       <AddBLDialog open={addOpen} onClose={() => setAddOpen(false)} />
       <EditMediaDialog open={!!editItem} onClose={() => setEditItem(null)} media={editItem} />
+      <ChangePasswordDialog open={changePwOpen} onClose={() => setChangePwOpen(false)} />
     </div>
   );
 }
