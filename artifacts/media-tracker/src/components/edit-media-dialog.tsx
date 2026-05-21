@@ -61,7 +61,7 @@ function loadRatings(mediaId: number) {
     const s = localStorage.getItem(`ov_ratings_${mediaId}`);
     if (s) return JSON.parse(s);
   } catch {}
-  return { worldBuilding: 0, art: 0, character: 0, concept: 0, originality: 0, translation: 0 };
+  return { worldBuilding: 0, art: 0, character: 0, concept: 0, originality: 0, plot: 0, translation: 0 };
 }
 function saveRatings(mediaId: number, ratings: any) {
   try { localStorage.setItem(`ov_ratings_${mediaId}`, JSON.stringify(ratings)); } catch {}
@@ -147,7 +147,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
 
   // Calculate Overall Average
   const calculateAverage = () => {
-    const activeRatings = [ratings.worldBuilding, ratings.art, ratings.character, ratings.concept, ratings.originality].filter(r => r > 0);
+    const activeRatings = [ratings.worldBuilding, ratings.art, ratings.character, ratings.concept, ratings.originality, ratings.plot].filter(r => r > 0);
     let total = activeRatings.reduce((a, b) => a + b, 0);
     let count = activeRatings.length;
     
@@ -341,6 +341,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                 { key: "character", label: "Character Depth" },
                 { key: "concept", label: "Concept" },
                 { key: "originality", label: "Originality" },
+                { key: "plot", label: "Plot" }, // ADDED HERE
                 { key: "translation", label: "Translation (Optional, affects less)" },
               ].map((cat) => (
                 <div key={cat.key} className="space-y-1">
