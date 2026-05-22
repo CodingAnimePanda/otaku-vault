@@ -236,13 +236,14 @@ router.delete("/media/:id", async (req, res): Promise<void> => {
 });
 
 // MangaDex proxy
-router.get("/proxy/mangadex", async (req, res) => {
+router.get("/media/proxy/mangadex", async (req, res) => {
   const { title } = req.query as { title: string };
   if (!title) return res.status(400).json({ error: "Missing title" });
   try {
-    const url = `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=1&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`;
+    const url = `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=5&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&includes[]=cover_art`;
     const r = await fetch(url);
-    const data = await r.json();
+    const data = await r.json() as { data?: Array<{ attributes?: { tags?: any[]; altTitles?: any[] } }> };
+    // Return first result — MangaDex already fuzzy matches
     res.json(data);
   } catch {
     res.status(500).json({ error: "MangaDex fetch failed" });
