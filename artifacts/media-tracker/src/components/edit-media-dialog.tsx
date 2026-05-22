@@ -20,23 +20,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ExternalLink, Heart, Star, X, Plus, Sparkles } from "lucide-react";
+import { Loader2, ExternalLink, Heart, Star, X, Plus, Sparkles, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
 const LIST_TYPES = ["library", "to_read", "avoid"] as const;
 const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime"] as const;
-
-interface ReadingSite { label: string; url: string; emoji: string; }
-const DEFAULT_SITES: ReadingSite[] = [
-  { label: "Webtoon",   url: "https://www.webtoons.com", emoji: "📱" },
-  { label: "MangaFire", url: "https://mangafire.to",     emoji: "🔥" },
-  { label: "VyManga",   url: "https://vymanga.com",      emoji: "📚" },
-];
-function loadSites(): ReadingSite[] {
-  try { const stored = localStorage.getItem("ov_reading_sites"); if (stored) return JSON.parse(stored); } catch {}
-  return DEFAULT_SITES;
-}
 
 function loadRatings(mediaId: number) {
   try { const s = localStorage.getItem(`ov_ratings_${mediaId}`); if (s) return JSON.parse(s); } catch {}
@@ -46,7 +35,6 @@ function saveRatings(mediaId: number, ratings: any) {
   try { localStorage.setItem(`ov_ratings_${mediaId}`, JSON.stringify(ratings)); } catch {}
 }
 
-// ── Genre helpers ─────────────────────────────────────────────────────────────
 const GENRE_COLORS = [
   "bg-sky-500/15 text-sky-400", "bg-violet-500/15 text-violet-400",
   "bg-rose-500/15 text-rose-400", "bg-amber-500/15 text-amber-400",
@@ -59,15 +47,43 @@ function genreColor(genre: string) {
   return GENRE_COLORS[Math.abs(hash) % GENRE_COLORS.length];
 }
 
-async function fetchGenresMangaDex(title: string): Promise<string[]> {
+// ── MangaDex candidate type ───────────────────────────────────────────────────
+interface MangaCandidate {
+  id: string;
+  title: string;
+  coverUrl: string | null;
+  genres: string[];
+}
+
+async function fetchCandidatesMangaDex(title: string): Promise<MangaCandidate[]> {
   try {
     const apiUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
     const res = await fetch(`${apiUrl}/api/media/proxy/mangadex?title=${encodeURIComponent(title)}`);
     if (!res.ok) return [];
-    const json = await res.json() as { data?: Array<{ attributes?: { tags?: Array<{ attributes?: { name?: { en?: string }; group?: string } }> } }> };
-    const tags = json.data?.[0]?.attributes?.tags ?? [];
-    return tags.filter((t) => t.attributes?.group === "genre" || t.attributes?.group === "theme")
-      .map((t) => t.attributes?.name?.en ?? "").filter(Boolean).slice(0, 8);
+    const json = await res.json() as {
+      data?: Array<{
+        id: string;
+        attributes?: {
+          title?: Record<string, string>;
+          tags?: Array<{ attributes?: { name?: { en?: string }; group?: string } }>;
+        };
+        relationships?: Array<{ type: string; id: string; attributes?: { fileName?: string } }>;
+      }>;
+    };
+    return (json.data ?? []).map((item) => {
+      const attrs = item.attributes ?? {};
+      const displayTitle = attrs.title?.en ?? attrs.title?.["ja-ro"] ?? Object.values(attrs.title ?? {})[0] ?? "Unknown";
+      const coverRel = item.relationships?.find((r) => r.type === "cover_art");
+      const coverUrl = coverRel?.attributes?.fileName
+        ? `https://uploads.mangadex.org/covers/${item.id}/${coverRel.attributes.fileName}.256.jpg`
+        : null;
+      const genres = (attrs.tags ?? [])
+        .filter((t) => t.attributes?.group === "genre" || t.attributes?.group === "theme")
+        .map((t) => t.attributes?.name?.en ?? "")
+        .filter(Boolean)
+        .slice(0, 8);
+      return { id: item.id, title: displayTitle, coverUrl, genres };
+    });
   } catch { return []; }
 }
 
@@ -80,11 +96,6 @@ async function fetchGenresJikan(title: string): Promise<string[]> {
   } catch { return []; }
 }
 
-async function fetchGenres(title: string, category: string): Promise<string[]> {
-  if (category === "anime") return fetchGenresJikan(title);
-  return fetchGenresMangaDex(title);
-}
-
 // ── Genre Tag Editor ──────────────────────────────────────────────────────────
 function GenreTagEditor({ genres, onChange }: { genres: string[]; onChange: (g: string[]) => void }) {
   const [input, setInput] = useState("");
@@ -95,16 +106,13 @@ function GenreTagEditor({ genres, onChange }: { genres: string[]; onChange: (g: 
     setInput("");
   };
   const removeGenre = (g: string) => onChange(genres.filter((x) => x !== g));
-
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1.5 min-h-[28px]">
         {genres.map((g) => (
           <span key={g} className={cn("flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium", genreColor(g))}>
             {g}
-            <button type="button" onClick={() => removeGenre(g)} className="hover:opacity-70 transition-opacity">
-              <X className="w-2.5 h-2.5" />
-            </button>
+            <button type="button" onClick={() => removeGenre(g)} className="hover:opacity-70 transition-opacity"><X className="w-2.5 h-2.5" /></button>
           </span>
         ))}
         {genres.length === 0 && <span className="text-xs text-muted-foreground italic">No genres yet</span>}
@@ -117,6 +125,34 @@ function GenreTagEditor({ genres, onChange }: { genres: string[]; onChange: (g: 
           <Plus className="w-3 h-3" />
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ── Match Picker ──────────────────────────────────────────────────────────────
+function MatchPicker({ candidates, onPick, onSkip }: {
+  candidates: MangaCandidate[];
+  onPick: (c: MangaCandidate) => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+      <p className="text-xs font-medium text-muted-foreground">Is this the right title? Pick a match:</p>
+      <div className="space-y-1.5 max-h-52 overflow-y-auto">
+        {candidates.map((c) => (
+          <button key={c.id} type="button" onClick={() => onPick(c)}
+            className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors text-left group">
+            {c.coverUrl
+              ? <img src={c.coverUrl} alt={c.title} className="w-8 h-12 object-cover rounded flex-shrink-0 border border-border" />
+              : <div className="w-8 h-12 rounded bg-muted-foreground/20 flex-shrink-0" />}
+            <span className="text-xs font-medium flex-1 leading-snug">{c.title}</span>
+            <ChevronRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+          </button>
+        ))}
+      </div>
+      <Button type="button" variant="ghost" size="sm" className="w-full h-7 text-xs text-muted-foreground" onClick={onSkip}>
+        None of these — skip
+      </Button>
     </div>
   );
 }
@@ -150,37 +186,31 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateMedia = useUpdateMedia();
-  const readingSites = loadSites();
 
   const [dropReason, setDropReason] = useState("");
   const [ratings, setRatings] = useState(() => loadRatings(media?.id ?? 0));
   const [genres, setGenres] = useState<string[]>([]);
-  const [genresFetching, setGenresFetching] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [candidates, setCandidates] = useState<MangaCandidate[] | null>(null);
   const isFavorite = media ? (favorites?.has(media.id) ?? false) : false;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      title: "", category: "manhwa", listType: "library",
-      status: undefined, notes: "", coverUrl: "", readingUrl: "", reviewText: "",
-    },
+    defaultValues: { title: "", category: "manhwa", listType: "library", status: undefined, notes: "", coverUrl: "", readingUrl: "", reviewText: "" },
   });
 
   useEffect(() => {
     if (media && open) {
       form.reset({
-        title: media.title,
-        category: media.category as any,
-        listType: media.listType as any,
-        status: (media.status as any) || undefined,
-        notes: media.notes || "",
-        coverUrl: media.coverUrl || "",
-        readingUrl: media.readingUrl || "",
+        title: media.title, category: media.category as any, listType: media.listType as any,
+        status: (media.status as any) || undefined, notes: media.notes || "",
+        coverUrl: media.coverUrl || "", readingUrl: media.readingUrl || "",
         reviewText: (media as any).reviewText || "",
       });
       setDropReason(dropReasons?.[media.id] ?? "");
       setRatings(loadRatings(media.id));
       setGenres((media as any).genres ?? []);
+      setCandidates(null);
     }
   }, [media, open]);
 
@@ -190,45 +220,54 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
   const watchedCategory = form.watch("category");
 
   const calculateAverage = () => {
-    const activeRatings = [ratings.worldBuilding, ratings.art, ratings.character, ratings.concept, ratings.originality].filter(r => r > 0);
-    let total = activeRatings.reduce((a, b) => a + b, 0);
-    let count = activeRatings.length;
-    if (ratings.translation > 0) { total += (ratings.translation * 0.5); count += 0.5; }
+    const active = [ratings.worldBuilding, ratings.art, ratings.character, ratings.concept, ratings.originality].filter(r => r > 0);
+    let total = active.reduce((a, b) => a + b, 0);
+    let count = active.length;
+    if (ratings.translation > 0) { total += ratings.translation * 0.5; count += 0.5; }
     return count === 0 ? "0.0" : (total / count).toFixed(1);
   };
 
   const handleFetchGenres = async () => {
     if (!watchedTitle) return;
-    setGenresFetching(true);
-    const fetched = await fetchGenres(watchedTitle, watchedCategory);
-    setGenresFetching(false);
-    if (fetched.length > 0) {
-      setGenres(fetched);
-      toast({ title: "Genres fetched!", description: `Found ${fetched.length} genre tags.` });
+    if (watchedCategory === "anime") {
+      setFetching(true);
+      const fetched = await fetchGenresJikan(watchedTitle);
+      setFetching(false);
+      if (fetched.length > 0) {
+        setGenres(fetched);
+        toast({ title: "Genres fetched!", description: `Found ${fetched.length} genre tags.` });
+      } else {
+        toast({ title: "No genres found", description: "Try editing the title slightly.", variant: "destructive" });
+      }
     } else {
-      toast({ title: "No genres found", description: "Try editing the title slightly.", variant: "destructive" });
+      setFetching(true);
+      const results = await fetchCandidatesMangaDex(watchedTitle);
+      setFetching(false);
+      if (results.length > 0) {
+        setCandidates(results);
+      } else {
+        toast({ title: "No results found", description: "Try adjusting the title.", variant: "destructive" });
+      }
     }
+  };
+
+  const handlePickCandidate = (c: MangaCandidate) => {
+    setGenres(c.genres);
+    setCandidates(null);
+    toast({ title: "Match confirmed!", description: `Using genres from "${c.title}".` });
   };
 
   const onSubmit = (values: FormValues) => {
     if (!media) return;
     if (values.status === "dropped" && onSaveDropReason) onSaveDropReason(media.id, dropReason.trim());
     saveRatings(media.id, ratings);
-    const averageScore = calculateAverage();
-
     updateMedia.mutate({
       id: media.id,
       data: {
-        title: values.title,
-        category: values.category,
-        status: (values.status as any) ?? null,
-        listType: values.listType,
-        notes: values.notes || null,
-        coverUrl: values.coverUrl || null,
-        readingUrl: values.readingUrl || null,
-        reviewText: values.reviewText || null,
-        rating: parseFloat(averageScore),
-        genres,
+        title: values.title, category: values.category, status: (values.status as any) ?? null,
+        listType: values.listType, notes: values.notes || null, coverUrl: values.coverUrl || null,
+        readingUrl: values.readingUrl || null, reviewText: values.reviewText || null,
+        rating: parseFloat(calculateAverage()), genres,
       } as any,
     }, {
       onSuccess: () => {
@@ -237,13 +276,9 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         toast({ title: "Updated!", description: `${values.title} has been updated.` });
         onClose();
       },
-      onError: () => {
-        toast({ title: "Error", description: "Failed to update. Please try again.", variant: "destructive" });
-      },
+      onError: () => { toast({ title: "Error", description: "Failed to update.", variant: "destructive" }); },
     });
   };
-
-  const averageScore = calculateAverage();
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -297,7 +332,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                   <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="none" className="text-muted-foreground italic">None</SelectItem>
-                    {STATUSES.map((status) => <SelectItem key={status} value={status} className="capitalize">{status.replace("_", " ")}</SelectItem>)}
+                    {STATUSES.map((s) => <SelectItem key={s} value={s} className="capitalize">{s.replace("_", " ")}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -319,20 +354,21 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Genre Tags</label>
                 <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5"
-                  onClick={handleFetchGenres} disabled={genresFetching || !watchedTitle}>
-                  {genresFetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                  onClick={handleFetchGenres} disabled={fetching || !watchedTitle}>
+                  {fetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                   Fetch Genres
                 </Button>
               </div>
+              {candidates && (
+                <MatchPicker candidates={candidates} onPick={handlePickCandidate} onSkip={() => setCandidates(null)} />
+              )}
               <GenreTagEditor genres={genres} onChange={setGenres} />
             </div>
 
             <FormField control={form.control} name="reviewText" render={({ field }) => (
               <FormItem>
                 <FormLabel>Your Review</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="What did you think?" className="resize-none text-sm" rows={3} {...field} />
-                </FormControl>
+                <FormControl><Textarea placeholder="What did you think?" className="resize-none text-sm" rows={3} {...field} /></FormControl>
               </FormItem>
             )} />
 
@@ -361,7 +397,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                   <Star className="w-4 h-4 text-yellow-500" />
                   <h3 className="font-semibold text-sm">Ratings & Review</h3>
                 </div>
-                <div className="px-2.5 py-1 rounded-md bg-primary/10 text-primary font-bold text-sm">{averageScore} / 10</div>
+                <div className="px-2.5 py-1 rounded-md bg-primary/10 text-primary font-bold text-sm">{calculateAverage()} / 10</div>
               </div>
               {[
                 { key: "worldBuilding", label: "World-building" },

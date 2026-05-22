@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Check, Loader2, ExternalLink, X, Plus, Sparkles } from "lucide-react";
+import { Search, Check, Loader2, ExternalLink, X, Plus, Sparkles, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime"] as const;
@@ -34,7 +34,6 @@ const READING_SITES = [
   { label: "VyManga",   url: "https://vymanga.com",       color: "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-400/50", emoji: "📚" },
 ];
 
-// ── Genre colors ──────────────────────────────────────────────────────────────
 const GENRE_COLORS = [
   "bg-sky-500/15 text-sky-400", "bg-violet-500/15 text-violet-400",
   "bg-rose-500/15 text-rose-400", "bg-amber-500/15 text-amber-400",
@@ -47,23 +46,47 @@ function genreColor(genre: string) {
   return GENRE_COLORS[Math.abs(hash) % GENRE_COLORS.length];
 }
 
-// ── Fetch genres from MangaDex ────────────────────────────────────────────────
-async function fetchGenresMangaDex(title: string): Promise<string[]> {
+// ── MangaDex candidate type ───────────────────────────────────────────────────
+interface MangaCandidate {
+  id: string;
+  title: string;
+  coverUrl: string | null;
+  genres: string[];
+}
+
+async function fetchCandidatesMangaDex(title: string): Promise<MangaCandidate[]> {
   try {
     const apiUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
     const res = await fetch(`${apiUrl}/api/media/proxy/mangadex?title=${encodeURIComponent(title)}`);
     if (!res.ok) return [];
-    const json = await res.json() as { data?: Array<{ attributes?: { tags?: Array<{ attributes?: { name?: { en?: string }; group?: string } }> } }> };
-    const tags = json.data?.[0]?.attributes?.tags ?? [];
-    return tags
-      .filter((t) => t.attributes?.group === "genre" || t.attributes?.group === "theme")
-      .map((t) => t.attributes?.name?.en ?? "")
-      .filter(Boolean)
-      .slice(0, 8);
+    const json = await res.json() as {
+      data?: Array<{
+        id: string;
+        attributes?: {
+          title?: Record<string, string>;
+          altTitles?: Array<Record<string, string>>;
+          tags?: Array<{ attributes?: { name?: { en?: string }; group?: string } }>;
+        };
+        relationships?: Array<{ type: string; id: string; attributes?: { fileName?: string } }>;
+      }>;
+    };
+    return (json.data ?? []).map((item) => {
+      const attrs = item.attributes ?? {};
+      const displayTitle = attrs.title?.en ?? attrs.title?.["ja-ro"] ?? Object.values(attrs.title ?? {})[0] ?? "Unknown";
+      const coverRel = item.relationships?.find((r) => r.type === "cover_art");
+      const coverUrl = coverRel?.attributes?.fileName
+        ? `https://uploads.mangadex.org/covers/${item.id}/${coverRel.attributes.fileName}.256.jpg`
+        : null;
+      const genres = (attrs.tags ?? [])
+        .filter((t) => t.attributes?.group === "genre" || t.attributes?.group === "theme")
+        .map((t) => t.attributes?.name?.en ?? "")
+        .filter(Boolean)
+        .slice(0, 8);
+      return { id: item.id, title: displayTitle, coverUrl, genres };
+    });
   } catch { return []; }
 }
 
-// ── Fetch genres from Jikan (anime) ──────────────────────────────────────────
 async function fetchGenresJikan(title: string): Promise<string[]> {
   try {
     const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1&sfw=true`);
@@ -73,15 +96,9 @@ async function fetchGenresJikan(title: string): Promise<string[]> {
   } catch { return []; }
 }
 
-async function fetchGenres(title: string, category: string): Promise<string[]> {
-  if (category === "anime") return fetchGenresJikan(title);
-  return fetchGenresMangaDex(title);
-}
-
 // ── Genre Tag Editor ──────────────────────────────────────────────────────────
 function GenreTagEditor({ genres, onChange }: { genres: string[]; onChange: (g: string[]) => void }) {
   const [input, setInput] = useState("");
-
   const addGenre = (g: string) => {
     const trimmed = g.trim();
     if (!trimmed || genres.includes(trimmed)) return;
@@ -89,32 +106,53 @@ function GenreTagEditor({ genres, onChange }: { genres: string[]; onChange: (g: 
     setInput("");
   };
   const removeGenre = (g: string) => onChange(genres.filter((x) => x !== g));
-
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1.5 min-h-[32px]">
         {genres.map((g) => (
           <span key={g} className={cn("flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium", genreColor(g))}>
             {g}
-            <button type="button" onClick={() => removeGenre(g)} className="hover:opacity-70 transition-opacity ml-0.5">
-              <X className="w-2.5 h-2.5" />
-            </button>
+            <button type="button" onClick={() => removeGenre(g)} className="hover:opacity-70 transition-opacity ml-0.5"><X className="w-2.5 h-2.5" /></button>
           </span>
         ))}
         {genres.length === 0 && <span className="text-xs text-muted-foreground italic">No genres yet</span>}
       </div>
       <div className="flex gap-2">
-        <Input
-          placeholder="Add a genre..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
+        <Input placeholder="Add a genre..." value={input} onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGenre(input); } }}
-          className="flex-1 h-7 text-xs"
-        />
+          className="flex-1 h-7 text-xs" />
         <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={() => addGenre(input)} disabled={!input.trim()}>
           <Plus className="w-3 h-3" />
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ── Match Picker ──────────────────────────────────────────────────────────────
+function MatchPicker({ candidates, onPick, onSkip }: {
+  candidates: MangaCandidate[];
+  onPick: (c: MangaCandidate) => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+      <p className="text-xs font-medium text-muted-foreground">Is this the right title? Pick a match:</p>
+      <div className="space-y-1.5 max-h-52 overflow-y-auto">
+        {candidates.map((c) => (
+          <button key={c.id} type="button" onClick={() => onPick(c)}
+            className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors text-left group">
+            {c.coverUrl
+              ? <img src={c.coverUrl} alt={c.title} className="w-8 h-12 object-cover rounded flex-shrink-0 border border-border" />
+              : <div className="w-8 h-12 rounded bg-muted-foreground/20 flex-shrink-0" />}
+            <span className="text-xs font-medium flex-1 leading-snug">{c.title}</span>
+            <ChevronRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+          </button>
+        ))}
+      </div>
+      <Button type="button" variant="ghost" size="sm" className="w-full h-7 text-xs text-muted-foreground" onClick={onSkip}>
+        None of these — skip
+      </Button>
     </div>
   );
 }
@@ -144,14 +182,12 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
   const [selectedCover, setSelectedCover] = useState<string | null>(null);
   const [coverSearch, setCoverSearch] = useState<{ title: string; category: string } | null>(null);
   const [genres, setGenres] = useState<string[]>([]);
-  const [genresFetching, setGenresFetching] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [candidates, setCandidates] = useState<MangaCandidate[] | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      title: "", category: "manhwa", listType: defaultListType,
-      status: undefined, notes: "", addedBy: "", customCoverUrl: "", readingUrl: "",
-    },
+    defaultValues: { title: "", category: "manhwa", listType: defaultListType, status: undefined, notes: "", addedBy: "", customCoverUrl: "", readingUrl: "" },
   });
 
   const watchedTitle = form.watch("title");
@@ -174,21 +210,38 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
       setSelectedCover(null);
       setCoverSearch(null);
       setGenres([]);
+      setCandidates(null);
     }
   }, [open, form, defaultListType]);
 
   const handleSearch = async () => {
     if (!watchedTitle) return;
-    // Trigger cover search
     setCoverSearch({ title: watchedTitle, category: watchedCategory });
-    // Fetch genres in parallel
-    setGenresFetching(true);
-    const fetched = await fetchGenres(watchedTitle, watchedCategory);
-    setGenresFetching(false);
-    if (fetched.length > 0) {
-      setGenres(fetched);
-      toast({ title: "Genres fetched!", description: `Found ${fetched.length} genre tags.` });
+    if (watchedCategory === "anime") {
+      setFetching(true);
+      const fetched = await fetchGenresJikan(watchedTitle);
+      setFetching(false);
+      if (fetched.length > 0) {
+        setGenres(fetched);
+        toast({ title: "Genres fetched!", description: `Found ${fetched.length} genre tags.` });
+      }
+    } else {
+      setFetching(true);
+      const results = await fetchCandidatesMangaDex(watchedTitle);
+      setFetching(false);
+      if (results.length > 0) {
+        setCandidates(results);
+      } else {
+        toast({ title: "No results found", description: "Try adjusting the title.", variant: "destructive" });
+      }
     }
+  };
+
+  const handlePickCandidate = (c: MangaCandidate) => {
+    setGenres(c.genres);
+    if (c.coverUrl && !selectedCover) setSelectedCover(c.coverUrl);
+    setCandidates(null);
+    toast({ title: "Match confirmed!", description: `Using genres from "${c.title}".` });
   };
 
   const onSubmit = (values: FormValues) => {
@@ -201,9 +254,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
           toast({ title: "Added!", description: `${values.title} has been added.` });
           onClose();
         },
-        onError: () => {
-          toast({ title: "Error", description: "Failed to add. Please try again.", variant: "destructive" });
-        },
+        onError: () => { toast({ title: "Error", description: "Failed to add.", variant: "destructive" }); },
       }
     );
   };
@@ -214,15 +265,10 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
         <DialogHeader>
           <DialogTitle className="font-display text-xl">Add New Title</DialogTitle>
         </DialogHeader>
-
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField control={form.control} name="title" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Title *</FormLabel>
-                <FormControl><Input placeholder="e.g. Omniscient Reader" {...field} data-testid="input-title" /></FormControl>
-                <FormMessage />
-              </FormItem>
+              <FormItem><FormLabel>Title *</FormLabel><FormControl><Input placeholder="e.g. Omniscient Reader" {...field} data-testid="input-title" /></FormControl><FormMessage /></FormItem>
             )} />
 
             <div className="grid grid-cols-2 gap-3">
@@ -255,7 +301,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                   <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="none" className="text-muted-foreground italic">None</SelectItem>
-                    {STATUSES.map((status) => <SelectItem key={status} value={status} className="capitalize">{status.replace("_", " ")}</SelectItem>)}
+                    {STATUSES.map((s) => <SelectItem key={s} value={s} className="capitalize">{s.replace("_", " ")}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -310,13 +356,16 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium leading-none">Cover & Genres</label>
                 <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5"
-                  onClick={handleSearch} disabled={!watchedTitle || coverFetching || genresFetching}>
-                  {(coverFetching || genresFetching)
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <Sparkles className="w-3 h-3" />}
+                  onClick={handleSearch} disabled={!watchedTitle || coverFetching || fetching}>
+                  {(coverFetching || fetching) ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                   Auto-fill
                 </Button>
               </div>
+
+              {/* Match picker */}
+              {candidates && (
+                <MatchPicker candidates={candidates} onPick={handlePickCandidate} onSkip={() => setCandidates(null)} />
+              )}
 
               {/* Cover results */}
               {Array.isArray(coverResults) && coverResults.length > 0 && (
@@ -353,11 +402,10 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                 </div>
               )}
 
-              {/* Genre tags */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-muted-foreground">Genre Tags</label>
-                  {genresFetching && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Fetching...</span>}
+                  {fetching && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Fetching...</span>}
                 </div>
                 <GenreTagEditor genres={genres} onChange={setGenres} />
               </div>
@@ -366,9 +414,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>
                 <FormLabel>Notes (optional)</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="Any notes about this title..." className="resize-none text-sm" rows={2} {...field} data-testid="textarea-notes" />
-                </FormControl>
+                <FormControl><Textarea placeholder="Any notes about this title..." className="resize-none text-sm" rows={2} {...field} data-testid="textarea-notes" /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
