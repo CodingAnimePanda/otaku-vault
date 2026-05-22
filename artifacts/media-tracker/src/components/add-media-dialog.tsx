@@ -50,7 +50,8 @@ function genreColor(genre: string) {
 // ── Fetch genres from MangaDex ────────────────────────────────────────────────
 async function fetchGenresMangaDex(title: string): Promise<string[]> {
   try {
-    const res = await fetch(`https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=1&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
+    const apiUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+    const res = await fetch(`${apiUrl}/api/proxy/mangadex?title=${encodeURIComponent(title)}`);
     if (!res.ok) return [];
     const json = await res.json() as { data?: Array<{ attributes?: { tags?: Array<{ attributes?: { name?: { en?: string }; group?: string } }> } }> };
     const tags = json.data?.[0]?.attributes?.tags ?? [];
