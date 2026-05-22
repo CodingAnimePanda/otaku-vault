@@ -4,40 +4,26 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  useUpdateMedia,
-  getListMediaQueryKey,
-  getGetMediaStatsQueryKey,
+  useUpdateMedia, getListMediaQueryKey, getGetMediaStatsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ExternalLink, Link, Pencil, Heart, Star } from "lucide-react";
+import { Loader2, ExternalLink, Heart, Star, X, Plus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const STATUSES = ["reading", "watching", "completed", "paused", "dropped"] as const;
+const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
 const LIST_TYPES = ["library", "to_read", "avoid"] as const;
 const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime"] as const;
 
@@ -48,25 +34,93 @@ const DEFAULT_SITES: ReadingSite[] = [
   { label: "VyManga",   url: "https://vymanga.com",      emoji: "📚" },
 ];
 function loadSites(): ReadingSite[] {
-  try {
-    const stored = localStorage.getItem("ov_reading_sites");
-    if (stored) return JSON.parse(stored);
-  } catch {}
+  try { const stored = localStorage.getItem("ov_reading_sites"); if (stored) return JSON.parse(stored); } catch {}
   return DEFAULT_SITES;
 }
 
-// ── Rating Load/Save Helpers ──
 function loadRatings(mediaId: number) {
-  try {
-    const s = localStorage.getItem(`ov_ratings_${mediaId}`);
-    if (s) return JSON.parse(s);
-  } catch {}
-  return { worldBuilding: 0, art: 0, character: 0, concept: 0, originality: 0, plot: 0, translation: 0 };
+  try { const s = localStorage.getItem(`ov_ratings_${mediaId}`); if (s) return JSON.parse(s); } catch {}
+  return { worldBuilding: 0, art: 0, character: 0, concept: 0, originality: 0, translation: 0 };
 }
 function saveRatings(mediaId: number, ratings: any) {
   try { localStorage.setItem(`ov_ratings_${mediaId}`, JSON.stringify(ratings)); } catch {}
 }
 
+// ── Genre helpers ─────────────────────────────────────────────────────────────
+const GENRE_COLORS = [
+  "bg-sky-500/15 text-sky-400", "bg-violet-500/15 text-violet-400",
+  "bg-rose-500/15 text-rose-400", "bg-amber-500/15 text-amber-400",
+  "bg-teal-500/15 text-teal-400", "bg-fuchsia-500/15 text-fuchsia-400",
+  "bg-lime-500/15 text-lime-400", "bg-cyan-500/15 text-cyan-400",
+];
+function genreColor(genre: string) {
+  let hash = 0;
+  for (let i = 0; i < genre.length; i++) hash = genre.charCodeAt(i) + ((hash << 5) - hash);
+  return GENRE_COLORS[Math.abs(hash) % GENRE_COLORS.length];
+}
+
+async function fetchGenresMangaDex(title: string): Promise<string[]> {
+  try {
+    const res = await fetch(`https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=1&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
+    if (!res.ok) return [];
+    const json = await res.json() as { data?: Array<{ attributes?: { tags?: Array<{ attributes?: { name?: { en?: string }; group?: string } }> } }> };
+    const tags = json.data?.[0]?.attributes?.tags ?? [];
+    return tags.filter((t) => t.attributes?.group === "genre" || t.attributes?.group === "theme")
+      .map((t) => t.attributes?.name?.en ?? "").filter(Boolean).slice(0, 8);
+  } catch { return []; }
+}
+
+async function fetchGenresJikan(title: string): Promise<string[]> {
+  try {
+    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1&sfw=true`);
+    if (!res.ok) return [];
+    const json = await res.json() as { data?: Array<{ genres?: Array<{ name: string }> }> };
+    return (json.data?.[0]?.genres ?? []).map((g) => g.name).slice(0, 8);
+  } catch { return []; }
+}
+
+async function fetchGenres(title: string, category: string): Promise<string[]> {
+  if (category === "anime") return fetchGenresJikan(title);
+  return fetchGenresMangaDex(title);
+}
+
+// ── Genre Tag Editor ──────────────────────────────────────────────────────────
+function GenreTagEditor({ genres, onChange }: { genres: string[]; onChange: (g: string[]) => void }) {
+  const [input, setInput] = useState("");
+  const addGenre = (g: string) => {
+    const trimmed = g.trim();
+    if (!trimmed || genres.includes(trimmed)) return;
+    onChange([...genres, trimmed]);
+    setInput("");
+  };
+  const removeGenre = (g: string) => onChange(genres.filter((x) => x !== g));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5 min-h-[28px]">
+        {genres.map((g) => (
+          <span key={g} className={cn("flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium", genreColor(g))}>
+            {g}
+            <button type="button" onClick={() => removeGenre(g)} className="hover:opacity-70 transition-opacity">
+              <X className="w-2.5 h-2.5" />
+            </button>
+          </span>
+        ))}
+        {genres.length === 0 && <span className="text-xs text-muted-foreground italic">No genres yet</span>}
+      </div>
+      <div className="flex gap-2">
+        <Input placeholder="Add a genre..." value={input} onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGenre(input); } }}
+          className="flex-1 h-7 text-xs" />
+        <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={() => addGenre(input)} disabled={!input.trim()}>
+          <Plus className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Schema ────────────────────────────────────────────────────────────────────
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
   category: z.enum(CATEGORIES),
@@ -77,28 +131,18 @@ const schema = z.object({
   readingUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   reviewText: z.string().optional(),
 });
-
 type FormValues = z.infer<typeof schema>;
 
 interface MediaItem {
-  id: number;
-  title: string;
-  category: string;
-  listType: string;
-  status?: string | null;
-  notes?: string | null;
-  coverUrl?: string | null;
-  readingUrl?: string | null;
+  id: number; title: string; category: string; listType: string;
+  status?: string | null; notes?: string | null; coverUrl?: string | null;
+  readingUrl?: string | null; genres?: string[];
 }
 
 interface Props {
-  open: boolean;
-  onClose: () => void;
-  media: MediaItem | null;
-  favorites?: Set<number>;
-  onToggleFavorite?: (id: number) => void;
-  dropReasons?: Record<number, string>;
-  onSaveDropReason?: (id: number, reason: string) => void;
+  open: boolean; onClose: () => void; media: MediaItem | null;
+  favorites?: Set<number>; onToggleFavorite?: (id: number) => void;
+  dropReasons?: Record<number, string>; onSaveDropReason?: (id: number, reason: string) => void;
 }
 
 export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavorite, dropReasons, onSaveDropReason }: Props) {
@@ -109,19 +153,15 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
 
   const [dropReason, setDropReason] = useState("");
   const [ratings, setRatings] = useState(() => loadRatings(media?.id ?? 0));
+  const [genres, setGenres] = useState<string[]>([]);
+  const [genresFetching, setGenresFetching] = useState(false);
   const isFavorite = media ? (favorites?.has(media.id) ?? false) : false;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      title: "",
-      category: "manhwa",
-      listType: "library",
-      status: undefined,
-      notes: "",
-      coverUrl: "",
-      readingUrl: "",
-      reviewText: "",
+      title: "", category: "manhwa", listType: "library",
+      status: undefined, notes: "", coverUrl: "", readingUrl: "", reviewText: "",
     },
   });
 
@@ -139,38 +179,41 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
       });
       setDropReason(dropReasons?.[media.id] ?? "");
       setRatings(loadRatings(media.id));
+      setGenres((media as any).genres ?? []);
     }
-  }, [media, open, form, dropReasons]);
+  }, [media, open]);
 
   const watchedStatus = form.watch("status");
   const watchedReadingUrl = form.watch("readingUrl");
+  const watchedTitle = form.watch("title");
+  const watchedCategory = form.watch("category");
 
-  // Calculate Overall Average
   const calculateAverage = () => {
-    const activeRatings = [ratings.worldBuilding, ratings.art, ratings.character, ratings.concept, ratings.originality, ratings.plot].filter(r => r > 0);
+    const activeRatings = [ratings.worldBuilding, ratings.art, ratings.character, ratings.concept, ratings.originality].filter(r => r > 0);
     let total = activeRatings.reduce((a, b) => a + b, 0);
     let count = activeRatings.length;
-    
-    // Translation has a slighly lower weight than the rest, if used
-    if (ratings.translation > 0) {
-       total += (ratings.translation * 0.5); 
-       count += 0.5;
-    }
+    if (ratings.translation > 0) { total += (ratings.translation * 0.5); count += 0.5; }
     return count === 0 ? "0.0" : (total / count).toFixed(1);
   };
 
-  const handleRatingChange = (key: string, value: number) => {
-    setRatings(prev => ({ ...prev, [key]: value }));
+  const handleFetchGenres = async () => {
+    if (!watchedTitle) return;
+    setGenresFetching(true);
+    const fetched = await fetchGenres(watchedTitle, watchedCategory);
+    setGenresFetching(false);
+    if (fetched.length > 0) {
+      setGenres(fetched);
+      toast({ title: "Genres fetched!", description: `Found ${fetched.length} genre tags.` });
+    } else {
+      toast({ title: "No genres found", description: "Try editing the title slightly.", variant: "destructive" });
+    }
   };
 
   const onSubmit = (values: FormValues) => {
     if (!media) return;
-
-    if (values.status === "dropped" && onSaveDropReason) {
-      onSaveDropReason(media.id, dropReason.trim());
-    }
-    // Save ratings locally
+    if (values.status === "dropped" && onSaveDropReason) onSaveDropReason(media.id, dropReason.trim());
     saveRatings(media.id, ratings);
+    const averageScore = calculateAverage();
 
     updateMedia.mutate({
       id: media.id,
@@ -182,23 +225,21 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         notes: values.notes || null,
         coverUrl: values.coverUrl || null,
         readingUrl: values.readingUrl || null,
-        reviewText: values.reviewText || null, // ADD THIS
-        rating: parseFloat(averageScore),     // ADD THIS
+        reviewText: values.reviewText || null,
+        rating: parseFloat(averageScore),
+        genres,
+      } as any,
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetMediaStatsQueryKey() });
+        toast({ title: "Updated!", description: `${values.title} has been updated.` });
+        onClose();
       },
-    },
-
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetMediaStatsQueryKey() });
-          toast({ title: "Updated!", description: `${values.title} has been updated.` });
-          onClose();
-        },
-        onError: () => {
-          toast({ title: "Error", description: "Failed to update. Please try again.", variant: "destructive" });
-        },
-      }
-    );
+      onError: () => {
+        toast({ title: "Error", description: "Failed to update. Please try again.", variant: "destructive" });
+      },
+    });
   };
 
   const averageScore = calculateAverage();
@@ -207,18 +248,13 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between pr-4">
-            <DialogTitle className="font-display text-xl">Edit Media</DialogTitle>
-          </div>
+          <DialogTitle className="font-display text-xl">Edit Media</DialogTitle>
         </DialogHeader>
 
         {media && onToggleFavorite && (
-          <Button
-            type="button"
-            variant="outline"
+          <Button type="button" variant="outline"
             className={cn("w-full mb-4 gap-2 border", isFavorite ? "border-rose-400/50 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20" : "")}
-            onClick={() => onToggleFavorite(media.id)}
-          >
+            onClick={() => onToggleFavorite(media.id)}>
             <Heart className={cn("w-4 h-4", isFavorite ? "fill-current" : "")} />
             {isFavorite ? "Favorited" : "Add to Favorites"}
           </Button>
@@ -227,11 +263,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField control={form.control} name="title" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Title</FormLabel>
-                <FormControl><Input {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
+              <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
 
             <div className="grid grid-cols-2 gap-3">
@@ -240,11 +272,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                   <FormLabel>Category</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent>{CATEGORIES.map((cat) => <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>)}</SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
@@ -254,11 +282,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                   <FormLabel>List</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {LIST_TYPES.map((type) => (
-                        <SelectItem key={type} value={type} className="capitalize">{type.replace("_", " ")}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent>{LIST_TYPES.map((type) => <SelectItem key={type} value={type} className="capitalize">{type.replace("_", " ")}</SelectItem>)}</SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
@@ -272,9 +296,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                   <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="none" className="text-muted-foreground italic">None</SelectItem>
-                    {STATUSES.map((status) => (
-                      <SelectItem key={status} value={status} className="capitalize">{status.replace("_", " ")}</SelectItem>
-                    ))}
+                    {STATUSES.map((status) => <SelectItem key={status} value={status} className="capitalize">{status.replace("_", " ")}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -286,21 +308,29 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                 <label className="text-sm font-medium leading-none text-red-400 flex items-center gap-1.5 mb-1.5">
                   Drop Reason <span className="text-xs text-muted-foreground font-normal">(optional)</span>
                 </label>
-                <Textarea
-                  placeholder="Why did you drop this?"
-                  className="resize-none text-sm border-red-500/20 focus-visible:ring-red-500/30"
-                  rows={2}
-                  value={dropReason}
-                  onChange={(e) => setDropReason(e.target.value)}
-                />
+                <Textarea placeholder="Why did you drop this?" className="resize-none text-sm border-red-500/20 focus-visible:ring-red-500/30" rows={2}
+                  value={dropReason} onChange={(e) => setDropReason(e.target.value)} />
               </div>
             )}
+
+            {/* Genre Tags */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Genre Tags</label>
+                <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                  onClick={handleFetchGenres} disabled={genresFetching || !watchedTitle}>
+                  {genresFetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                  Fetch Genres
+                </Button>
+              </div>
+              <GenreTagEditor genres={genres} onChange={setGenres} />
+            </div>
 
             <FormField control={form.control} name="reviewText" render={({ field }) => (
               <FormItem>
                 <FormLabel>Your Review</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="What did you think of the media?" className="resize-none text-sm" rows={3} {...field} />
+                  <Textarea placeholder="What did you think?" className="resize-none text-sm" rows={3} {...field} />
                 </FormControl>
               </FormItem>
             )} />
@@ -323,25 +353,21 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
               </FormItem>
             )} />
 
-            {/* ── NEW RATINGS & REVIEW SECTION ── */}
+            {/* Ratings */}
             <div className="p-4 rounded-xl border border-border bg-card/50 space-y-4 shadow-sm">
               <div className="flex items-center justify-between pb-2 border-b border-border">
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 text-yellow-500" />
                   <h3 className="font-semibold text-sm">Ratings & Review</h3>
                 </div>
-                <div className="px-2.5 py-1 rounded-md bg-primary/10 text-primary font-bold text-sm">
-                  {averageScore} / 10
-                </div>
+                <div className="px-2.5 py-1 rounded-md bg-primary/10 text-primary font-bold text-sm">{averageScore} / 10</div>
               </div>
-
               {[
                 { key: "worldBuilding", label: "World-building" },
                 { key: "art", label: "Art" },
                 { key: "character", label: "Character Depth" },
                 { key: "concept", label: "Concept" },
                 { key: "originality", label: "Originality" },
-                { key: "plot", label: "Plot" },
                 { key: "translation", label: "Translation (Optional, affects less)" },
               ].map((cat) => (
                 <div key={cat.key} className="space-y-1">
@@ -349,15 +375,9 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                     <span className="text-muted-foreground">{cat.label}</span>
                     <span className="font-medium">{(ratings as any)[cat.key] > 0 ? `${(ratings as any)[cat.key]}/10` : "Unrated"}</span>
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="10"
-                    step="1"
-                    value={(ratings as any)[cat.key]}
-                    onChange={(e) => handleRatingChange(cat.key, parseInt(e.target.value))}
-                    className="w-full accent-primary h-1 bg-muted rounded-lg appearance-none cursor-pointer"
-                  />
+                  <input type="range" min="0" max="10" step="1" value={(ratings as any)[cat.key]}
+                    onChange={(e) => setRatings((prev: any) => ({ ...prev, [cat.key]: parseInt(e.target.value) }))}
+                    className="w-full accent-primary h-1 bg-muted rounded-lg appearance-none cursor-pointer" />
                 </div>
               ))}
             </div>
@@ -367,18 +387,14 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                 <FormLabel>Cover URL</FormLabel>
                 <FormControl><Input placeholder="https://..." {...field} className="text-xs" /></FormControl>
                 <FormMessage />
-                {field.value && (
-                  <img src={field.value} alt="Cover preview" className="w-12 h-16 object-cover rounded-md mt-1 border border-border" />
-                )}
+                {field.value && <img src={field.value} alt="Cover preview" className="w-12 h-16 object-cover rounded-md mt-1 border border-border" />}
               </FormItem>
             )} />
 
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>
                 <FormLabel>Notes</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="Any notes..." className="resize-none text-sm" rows={2} {...field} />
-                </FormControl>
+                <FormControl><Textarea placeholder="Any notes..." className="resize-none text-sm" rows={2} {...field} /></FormControl>
               </FormItem>
             )} />
 

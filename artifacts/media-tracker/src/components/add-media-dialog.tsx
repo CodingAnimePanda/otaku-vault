@@ -4,39 +4,24 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  useCreateMedia,
-  useSearchCover,
-  getListMediaQueryKey,
-  getGetMediaStatsQueryKey,
-  getSearchCoverQueryKey,
+  useCreateMedia, useSearchCover, getListMediaQueryKey,
+  getGetMediaStatsQueryKey, getSearchCoverQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Check, Loader2, ExternalLink, Link } from "lucide-react";
+import { Search, Check, Loader2, ExternalLink, X, Plus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime"] as const;
@@ -49,6 +34,91 @@ const READING_SITES = [
   { label: "VyManga",   url: "https://vymanga.com",       color: "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:border-purple-400/50", emoji: "📚" },
 ];
 
+// ── Genre colors ──────────────────────────────────────────────────────────────
+const GENRE_COLORS = [
+  "bg-sky-500/15 text-sky-400", "bg-violet-500/15 text-violet-400",
+  "bg-rose-500/15 text-rose-400", "bg-amber-500/15 text-amber-400",
+  "bg-teal-500/15 text-teal-400", "bg-fuchsia-500/15 text-fuchsia-400",
+  "bg-lime-500/15 text-lime-400", "bg-cyan-500/15 text-cyan-400",
+];
+function genreColor(genre: string) {
+  let hash = 0;
+  for (let i = 0; i < genre.length; i++) hash = genre.charCodeAt(i) + ((hash << 5) - hash);
+  return GENRE_COLORS[Math.abs(hash) % GENRE_COLORS.length];
+}
+
+// ── Fetch genres from MangaDex ────────────────────────────────────────────────
+async function fetchGenresMangaDex(title: string): Promise<string[]> {
+  try {
+    const res = await fetch(`https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=1&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
+    if (!res.ok) return [];
+    const json = await res.json() as { data?: Array<{ attributes?: { tags?: Array<{ attributes?: { name?: { en?: string }; group?: string } }> } }> };
+    const tags = json.data?.[0]?.attributes?.tags ?? [];
+    return tags
+      .filter((t) => t.attributes?.group === "genre" || t.attributes?.group === "theme")
+      .map((t) => t.attributes?.name?.en ?? "")
+      .filter(Boolean)
+      .slice(0, 8);
+  } catch { return []; }
+}
+
+// ── Fetch genres from Jikan (anime) ──────────────────────────────────────────
+async function fetchGenresJikan(title: string): Promise<string[]> {
+  try {
+    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1&sfw=true`);
+    if (!res.ok) return [];
+    const json = await res.json() as { data?: Array<{ genres?: Array<{ name: string }> }> };
+    return (json.data?.[0]?.genres ?? []).map((g) => g.name).slice(0, 8);
+  } catch { return []; }
+}
+
+async function fetchGenres(title: string, category: string): Promise<string[]> {
+  if (category === "anime") return fetchGenresJikan(title);
+  return fetchGenresMangaDex(title);
+}
+
+// ── Genre Tag Editor ──────────────────────────────────────────────────────────
+function GenreTagEditor({ genres, onChange }: { genres: string[]; onChange: (g: string[]) => void }) {
+  const [input, setInput] = useState("");
+
+  const addGenre = (g: string) => {
+    const trimmed = g.trim();
+    if (!trimmed || genres.includes(trimmed)) return;
+    onChange([...genres, trimmed]);
+    setInput("");
+  };
+  const removeGenre = (g: string) => onChange(genres.filter((x) => x !== g));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+        {genres.map((g) => (
+          <span key={g} className={cn("flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium", genreColor(g))}>
+            {g}
+            <button type="button" onClick={() => removeGenre(g)} className="hover:opacity-70 transition-opacity ml-0.5">
+              <X className="w-2.5 h-2.5" />
+            </button>
+          </span>
+        ))}
+        {genres.length === 0 && <span className="text-xs text-muted-foreground italic">No genres yet</span>}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          placeholder="Add a genre..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGenre(input); } }}
+          className="flex-1 h-7 text-xs"
+        />
+        <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={() => addGenre(input)} disabled={!input.trim()}>
+          <Plus className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Schema ────────────────────────────────────────────────────────────────────
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
   category: z.enum(CATEGORIES),
@@ -59,7 +129,6 @@ const schema = z.object({
   customCoverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   readingUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
-
 type FormValues = z.infer<typeof schema>;
 
 interface Props {
@@ -73,18 +142,14 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
   const queryClient = useQueryClient();
   const [selectedCover, setSelectedCover] = useState<string | null>(null);
   const [coverSearch, setCoverSearch] = useState<{ title: string; category: string } | null>(null);
+  const [genres, setGenres] = useState<string[]>([]);
+  const [genresFetching, setGenresFetching] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      title: "",
-      category: "manhwa",
-      listType: defaultListType,
-      status: undefined,
-      notes: "",
-      addedBy: "",
-      customCoverUrl: "",
-      readingUrl: "",
+      title: "", category: "manhwa", listType: defaultListType,
+      status: undefined, notes: "", addedBy: "", customCoverUrl: "", readingUrl: "",
     },
   });
 
@@ -92,16 +157,13 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
   const watchedCategory = form.watch("category");
   const watchedReadingUrl = form.watch("readingUrl");
 
-  const searchParams = coverSearch ? { title: coverSearch.title, category: coverSearch.category as typeof CATEGORIES[number] } : { title: "", category: "manhwa" as const };
-  const { data: coverResults, isFetching: coverFetching } = useSearchCover(
-    searchParams,
-    {
-      query: {
-        enabled: !!coverSearch && !!coverSearch.title,
-        queryKey: getSearchCoverQueryKey(searchParams),
-      },
-    }
-  );
+  const searchParams = coverSearch
+    ? { title: coverSearch.title, category: coverSearch.category as typeof CATEGORIES[number] }
+    : { title: "", category: "manhwa" as const };
+
+  const { data: coverResults, isFetching: coverFetching } = useSearchCover(searchParams, {
+    query: { enabled: !!coverSearch?.title, queryKey: getSearchCoverQueryKey(searchParams) },
+  });
 
   const createMedia = useCreateMedia();
 
@@ -110,12 +172,27 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
       form.reset({ title: "", category: "manhwa", listType: defaultListType, status: undefined, notes: "", addedBy: "", customCoverUrl: "", readingUrl: "" });
       setSelectedCover(null);
       setCoverSearch(null);
+      setGenres([]);
     }
   }, [open, form, defaultListType]);
 
+  const handleSearch = async () => {
+    if (!watchedTitle) return;
+    // Trigger cover search
+    setCoverSearch({ title: watchedTitle, category: watchedCategory });
+    // Fetch genres in parallel
+    setGenresFetching(true);
+    const fetched = await fetchGenres(watchedTitle, watchedCategory);
+    setGenresFetching(false);
+    if (fetched.length > 0) {
+      setGenres(fetched);
+      toast({ title: "Genres fetched!", description: `Found ${fetched.length} genre tags.` });
+    }
+  };
+
   const onSubmit = (values: FormValues) => {
     createMedia.mutate(
-      { data: { ...values, coverUrl: selectedCover || values.customCoverUrl || null } },
+      { data: { ...values, coverUrl: selectedCover || values.customCoverUrl || null, genres } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
@@ -129,8 +206,6 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
       }
     );
   };
-
-  const isNormie = form.watch("listType") === "normie_tv" || form.watch("listType") === "normie_movie";
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -155,11 +230,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                   <FormLabel>Category</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent>{CATEGORIES.map((cat) => <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>)}</SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
@@ -169,11 +240,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                   <FormLabel>List</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {LIST_TYPES.map((type) => (
-                        <SelectItem key={type} value={type} className="capitalize">{type.replace("_", " ")}</SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent>{LIST_TYPES.map((type) => <SelectItem key={type} value={type} className="capitalize">{type.replace("_", " ")}</SelectItem>)}</SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
@@ -187,79 +254,78 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
                   <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="none" className="text-muted-foreground italic">None</SelectItem>
-                    {STATUSES.map((status) => (
-                      <SelectItem key={status} value={status} className="capitalize">{status.replace("_", " ")}</SelectItem>
-                    ))}
+                    {STATUSES.map((status) => <SelectItem key={status} value={status} className="capitalize">{status.replace("_", " ")}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
             )} />
 
-            {!isNormie && (
-              <FormField control={form.control} name="readingUrl" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Reading / Watching Link</FormLabel>
-                  <FormControl>
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <Input placeholder="https://..." {...field} className="flex-1 text-xs" />
-                        {watchedReadingUrl && (
-                          <a href={watchedReadingUrl} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center justify-center w-9 flex-shrink-0 bg-muted hover:bg-muted/80 rounded-md border border-border transition-colors">
-                            <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                          </a>
-                        )}
-                      </div>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {READING_SITES.map((site) => (
-                          <div key={site.label} className="flex group">
-                            <button type="button" onClick={() => form.setValue("readingUrl", site.url)}
-                              className={cn("text-[10px] px-2 py-1 rounded-l-md border border-r-0 transition-colors flex items-center gap-1", site.color)}>
-                              <span>{site.emoji}</span> {site.label}
-                            </button>
-                            <button type="button" disabled={!watchedTitle}
-                              onClick={() => {
-                                const searchUrl = site.url.includes("mangafire") 
-                                  ? `https://mangafire.to/filter?keyword=${encodeURIComponent(watchedTitle)}`
-                                  : site.url.includes("vymanga")
-                                  ? `https://vymanga.net/search?q=${encodeURIComponent(watchedTitle)}`
-                                  : `https://www.webtoons.com/en/search?keyword=${encodeURIComponent(watchedTitle)}`;
-                                window.open(searchUrl, "_blank");
-                              }}
-                              className={cn("text-[10px] px-1.5 py-1 rounded-r-md border transition-colors flex items-center justify-center", 
-                                site.color, "hover:bg-foreground/5 disabled:opacity-50 disabled:cursor-not-allowed")}>
-                              <Search className="w-2.5 h-2.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+            <FormField control={form.control} name="readingUrl" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Reading / Watching Link</FormLabel>
+                <FormControl>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input placeholder="https://..." {...field} className="flex-1 text-xs" />
+                      {watchedReadingUrl && (
+                        <a href={watchedReadingUrl} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center justify-center w-9 flex-shrink-0 bg-muted hover:bg-muted/80 rounded-md border border-border transition-colors">
+                          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                        </a>
+                      )}
                     </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-            )}
+                    <div className="flex gap-1.5 flex-wrap">
+                      {READING_SITES.map((site) => (
+                        <div key={site.label} className="flex group">
+                          <button type="button" onClick={() => form.setValue("readingUrl", site.url)}
+                            className={cn("text-[10px] px-2 py-1 rounded-l-md border border-r-0 transition-colors flex items-center gap-1", site.color)}>
+                            <span>{site.emoji}</span> {site.label}
+                          </button>
+                          <button type="button" disabled={!watchedTitle}
+                            onClick={() => {
+                              const searchUrl = site.url.includes("mangafire")
+                                ? `https://mangafire.to/filter?keyword=${encodeURIComponent(watchedTitle)}`
+                                : site.url.includes("vymanga")
+                                ? `https://vymanga.net/search?q=${encodeURIComponent(watchedTitle)}`
+                                : `https://www.webtoons.com/en/search?keyword=${encodeURIComponent(watchedTitle)}`;
+                              window.open(searchUrl, "_blank");
+                            }}
+                            className={cn("text-[10px] px-1.5 py-1 rounded-r-md border transition-colors flex items-center justify-center",
+                              site.color, "hover:bg-foreground/5 disabled:opacity-50 disabled:cursor-not-allowed")}>
+                            <Search className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            <div className="pt-2 border-t border-border/50">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium leading-none">Cover Image</label>
-                <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
-                  onClick={() => setCoverSearch({ title: watchedTitle, category: watchedCategory })}
-                  disabled={!watchedTitle || coverFetching}>
-                  {coverFetching ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : <Search className="w-3 h-3 mr-1.5" />}
-                  Search
+            {/* Cover + Genre Search */}
+            <div className="pt-2 border-t border-border/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium leading-none">Cover & Genres</label>
+                <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                  onClick={handleSearch} disabled={!watchedTitle || coverFetching || genresFetching}>
+                  {(coverFetching || genresFetching)
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <Sparkles className="w-3 h-3" />}
+                  Auto-fill
                 </Button>
               </div>
 
-              {coverResults && coverResults.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 snap-x">
-                  {coverResults.map((result, i) => (
-                    <button key={i} type="button" onClick={() => setSelectedCover(result.url)}
+              {/* Cover results */}
+              {Array.isArray(coverResults) && coverResults.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
+                  {coverResults.map((result: any, i: number) => (
+                    <button key={i} type="button" onClick={() => setSelectedCover(result.coverUrl ?? result.url)}
                       className={cn("relative w-16 h-24 flex-shrink-0 rounded-md overflow-hidden border-2 transition-all snap-start",
-                        selectedCover === result.url ? "border-primary scale-105" : "border-transparent hover:border-primary/50")}>
-                      <img src={result.url} alt="Cover" className="w-full h-full object-cover" />
-                      {selectedCover === result.url && (
+                        selectedCover === (result.coverUrl ?? result.url) ? "border-primary scale-105" : "border-transparent hover:border-primary/50")}>
+                      <img src={result.coverUrl ?? result.url} alt="Cover" className="w-full h-full object-cover" />
+                      {selectedCover === (result.coverUrl ?? result.url) && (
                         <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                           <Check className="w-6 h-6 text-white drop-shadow-md" />
                         </div>
@@ -270,18 +336,30 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
               )}
 
               <FormField control={form.control} name="customCoverUrl" render={({ field }) => (
-                <FormItem className="mt-2">
-                  <FormControl><Input placeholder="Or paste custom image URL..." {...field} className="text-xs" onChange={(e) => { field.onChange(e); setSelectedCover(null); }} /></FormControl>
+                <FormItem>
+                  <FormControl>
+                    <Input placeholder="Or paste custom image URL..." {...field} className="text-xs"
+                      onChange={(e) => { field.onChange(e); setSelectedCover(null); }} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
 
               {(selectedCover || form.watch("customCoverUrl")) && (
-                <div className="mt-2 flex items-center gap-3 p-2 rounded-lg bg-muted/50">
+                <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
                   <img src={selectedCover || form.watch("customCoverUrl") || ""} alt="Selected cover" className="w-10 h-14 object-cover rounded-md" />
                   <p className="text-xs text-muted-foreground">Cover selected</p>
                 </div>
               )}
+
+              {/* Genre tags */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-muted-foreground">Genre Tags</label>
+                  {genresFetching && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Fetching...</span>}
+                </div>
+                <GenreTagEditor genres={genres} onChange={setGenres} />
+              </div>
             </div>
 
             <FormField control={form.control} name="notes" render={({ field }) => (

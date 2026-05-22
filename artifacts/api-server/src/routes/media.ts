@@ -188,7 +188,8 @@ router.put("/media/:id", async (req, res): Promise<void> => {
       notes: data.notes ?? null,
       coverUrl: data.coverUrl ?? null,
       readingUrl: data.readingUrl ?? null,
-      reviewText: req.body.reviewText ?? null, // Ensure these lines use commas, not semicolons
+      genres: data.genres ?? undefined,
+      reviewText: req.body.reviewText ?? null,
       rating: req.body.rating ?? null,         
     })
     .where(and(eq(mediaTable.id, mediaId), eq(mediaTable.userId, userId)))
