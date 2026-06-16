@@ -111,3 +111,19 @@ export const insertRecommendationSchema = createInsertSchema(recommendationsTabl
 });
 export type InsertRecommendation = z.infer<typeof insertRecommendationSchema>;
 export type Recommendation = typeof recommendationsTable.$inferSelect;
+
+// --- Library Sharing (per-friend toggle for viewing tier list/reviews) ---
+export const librarySharingTable = pgTable("library_sharing", {
+  id: serial("id").primaryKey(),
+  ownerId: text("owner_id").notNull(),
+  friendId: text("friend_id").notNull(),
+  enabled: boolean("enabled").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertLibrarySharingSchema = createInsertSchema(librarySharingTable).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertLibrarySharing = z.infer<typeof insertLibrarySharingSchema>;
+export type LibrarySharing = typeof librarySharingTable.$inferSelect;
