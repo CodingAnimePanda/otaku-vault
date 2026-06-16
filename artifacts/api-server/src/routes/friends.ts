@@ -153,7 +153,7 @@ router.get("/friends", async (req, res): Promise<void> => {
   const enriched = await Promise.all(rows.map(async (f) => {
     const friendId = f.senderId === userId ? f.receiverId : f.senderId;
     const [profile] = await db.select().from(usersTable).where(eq(usersTable.clerkId, friendId));
-    return { friendshipId: f.id, friend: profile ?? null };
+    return { friendshipId: f.id, friendId, friend: profile ?? null };
   }));
 
   res.json(enriched);
