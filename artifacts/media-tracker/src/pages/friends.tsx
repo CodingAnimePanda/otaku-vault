@@ -37,7 +37,7 @@ function GenreTags({ genres }: { genres: string[] }) {
   );
 }
 
-// ── Setup & Rec Dialogs (Unchanged functionally) ──────────────────────────────
+// ── Setup & Rec Dialogs ───────────────────────────────────────────────────────
 function SetupProfileDialog({ open, onDone, apiFetch }: { open: boolean; onDone: (profile: UserProfile) => void; apiFetch: ApiFetch; }) {
   const [username, setUsername] = useState(""); const [displayName, setDisplayName] = useState(""); const [loading, setLoading] = useState(false); const [error, setError] = useState(""); const { toast } = useToast();
   const handleSubmit = async () => {
@@ -96,12 +96,79 @@ function SendRecDialog({ open, onClose, friends, preselectedTitle, apiFetch }: {
   );
 }
 
+// ── Friend Media Details Dialog ───────────────────────────────────────────────
+function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLibraryItem | null, open: boolean, onClose: () => void, onSendRec: (title: string) => void }) {
+  if (!item) return null;
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl leading-tight pr-4">{item.title}</DialogTitle>
+          <DialogDescription className="sr-only">Details and review for {item.title}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col sm:flex-row gap-5 mt-2">
+          <div className="w-32 h-48 flex-shrink-0 rounded-lg overflow-hidden bg-muted border border-border mx-auto sm:mx-0 shadow-md">
+            {item.coverUrl || item.customCoverUrl ? (
+              <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-8 h-8 text-muted-foreground/30" /></div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0 space-y-4">
+            <div>
+               <p className="text-sm font-medium capitalize text-muted-foreground mb-1">{item.category} • {item.status || "Unknown"}</p>
+               <GenreTags genres={item.genres} />
+            </div>
+            
+            {(item.tier || item.rating != null) && (
+              <div className="flex items-center gap-3 flex-wrap">
+                {item.tier && (
+                  <div className="flex items-center gap-1.5 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2.5 py-1.5 rounded-md border border-yellow-500/20">
+                    <Trophy className="w-4 h-4" />
+                    <span className="font-black text-sm">{item.tier} Tier</span>
+                  </div>
+                )}
+                {item.rating != null && (
+                  <div className="flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1.5 rounded-md border border-primary/20">
+                    <Star className="w-4 h-4 fill-primary" />
+                    <span className="font-bold text-sm">{item.rating} / 10</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {item.reviewText ? (
+              <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Friend's Review</h4>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{item.reviewText}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No review provided.</p>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2 mt-4 pt-4 border-t border-border">
+          {item.readingUrl && (
+            <a href={item.readingUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+              <Button variant="outline" className="w-full gap-2"><BookOpen className="w-4 h-4" /> Open Source Link</Button>
+            </a>
+          )}
+          <Button className="flex-1 gap-2" onClick={() => { onClose(); onSendRec(item.title); }}>
+            <Send className="w-4 h-4" /> Send Recommendation Back
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Inline Friend Profile View ────────────────────────────────────────────────
 function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: FriendEntry; onBack: () => void; onSendRec: (title: string) => void; apiFetch: ApiFetch; }) {
   const [grouped, setGrouped] = useState<GroupedLibrary | null>(null);
   const [loading, setLoading] = useState(true);
   const [notShared, setNotShared] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedItem, setSelectedItem] = useState<FriendLibraryItem | null>(null);
 
   useEffect(() => {
     apiFetch(`/api/friends/${friend.friendId}/library`)
@@ -122,7 +189,7 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300 pb-12">
       <Button variant="ghost" onClick={onBack} className="gap-2 mb-2 -ml-2 text-muted-foreground hover:text-foreground"><ArrowLeft className="w-4 h-4" /> Back to Friends</Button>
 
-      {/* Profile Header (Mirrors profile.tsx) */}
+      {/* Profile Header */}
       <div className="relative rounded-2xl overflow-hidden border border-border bg-card shadow-xl max-w-3xl mx-auto">
         <div className="h-32 bg-gradient-to-r from-primary/40 via-primary/20 to-transparent"></div>
         <div className="px-6 pb-6 pt-0 relative flex flex-col sm:flex-row items-center sm:items-end gap-4 -mt-12">
@@ -161,7 +228,7 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {topFavorites.map((item) => (
-                  <div key={`fav-${item.id}`} className="group relative aspect-[2/3] rounded-xl overflow-hidden border border-border shadow-md">
+                  <div key={`fav-${item.id}`} onClick={() => setSelectedItem(item)} className="group relative aspect-[2/3] rounded-xl overflow-hidden border border-border shadow-md cursor-pointer">
                     {item.coverUrl || item.customCoverUrl ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="w-full h-full bg-muted flex items-center justify-center"><BookOpen className="w-8 h-8 text-muted-foreground/30" /></div>}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4">
                       <span className="text-yellow-400 font-black text-lg mb-1 drop-shadow-md">#1</span>
@@ -174,7 +241,7 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
             </div>
           )}
 
-          {/* Library Grid (Mirrors dashboard.tsx GridCard) */}
+          {/* Library Grid */}
           <div className="space-y-4 pt-4 border-t border-border">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <h2 className="text-xl font-display font-bold flex items-center gap-2"><LayoutGrid className="w-5 h-5 text-primary"/> Full Library</h2>
@@ -186,7 +253,7 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
               {filteredItems.map(item => (
-                <div key={item.id} className="group relative">
+                <div key={item.id} className="group relative cursor-pointer" onClick={() => setSelectedItem(item)}>
                   <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
                     {item.coverUrl || item.customCoverUrl ? (
                       <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -194,7 +261,7 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
                       <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/30 text-xs p-4 text-center gap-2"><BookOpen className="w-5 h-5 text-muted-foreground/50" /><span className="text-muted-foreground">{item.title}</span></div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 gap-1.5">
-                      <Button size="sm" onClick={() => onSendRec(item.title)} className="w-full gap-2 h-8 text-xs bg-primary/90 hover:bg-primary"><Send className="w-3.5 h-3.5"/> Rec Back</Button>
+                      <Button size="sm" onClick={(e) => { e.stopPropagation(); onSendRec(item.title); }} className="w-full gap-2 h-8 text-xs bg-primary/90 hover:bg-primary"><Send className="w-3.5 h-3.5"/> Rec Back</Button>
                     </div>
                     {item.tier && <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center"><span className="text-xs font-display font-black text-yellow-400">{item.tier}</span></div>}
                   </div>
@@ -214,6 +281,13 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
           </div>
         </div>
       )}
+
+      <FriendMediaDialog 
+        item={selectedItem} 
+        open={!!selectedItem} 
+        onClose={() => setSelectedItem(null)} 
+        onSendRec={(title) => { setSelectedItem(null); onSendRec(title); }} 
+      />
     </div>
   );
 }
@@ -281,12 +355,10 @@ export default function FriendsPage() {
 
   if (profileLoading) return <div className="flex justify-center py-24"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
-  // Render the Profile + Inline Library View if viewing a friend
   if (viewingFriend) {
     return <FriendProfileView friend={viewingFriend} onBack={() => setViewingFriend(null)} apiFetch={apiFetch} onSendRec={(title) => { setSendRecTitle(title); setSendRecOpen(true); }} />;
   }
 
-  // Regular Tabs View
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -320,7 +392,6 @@ export default function FriendsPage() {
             return (
               <div key={f.friendshipId} className="p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors group">
                 <div className="flex items-center gap-3">
-                  {/* Clicking Avatar opens their profile view */}
                   <Avatar profile={f.friend} size="md" onClick={() => setViewingFriend(f)} />
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setViewingFriend(f)}>
                     {f.friend ? (
@@ -343,7 +414,6 @@ export default function FriendsPage() {
         </div>
       )}
 
-      {/* Requests & Recs Tabs remain unchanged visually */}
       {tab === "requests" && (
         <div className="space-y-3">
           {requests.length === 0 ? <div className="text-center py-16 text-muted-foreground"><UserPlus className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="font-medium">No pending requests</p></div> : requests.map((req) => (
