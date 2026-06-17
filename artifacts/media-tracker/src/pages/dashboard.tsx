@@ -23,7 +23,7 @@ import { AddMediaDialog } from "@/components/add-media-dialog";
 import { EditMediaDialog } from "@/components/edit-media-dialog";
 import { cn, proxyImage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-Import { useAuth from } "@clerk/clerk-react
+import { useAuth } from "@clerk/clerk-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
