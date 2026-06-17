@@ -17,13 +17,14 @@ import {
   Plus, BookOpen, Tv, Sparkles, PlayCircle, Clock,
   Search, ExternalLink, Pencil, XCircle, AlertTriangle,
   Heart, Star, LayoutGrid, List, Image, ArrowUpDown,
-  Shuffle, Trophy, ChevronDown, ChevronUp, X,
+  Shuffle, Trophy, ChevronDown, ChevronUp, X, Loader2, Wand2,
 } from "lucide-react";
 import { AddMediaDialog } from "@/components/add-media-dialog";
 import { EditMediaDialog } from "@/components/edit-media-dialog";
 import { cn, proxyImage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
+
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -491,6 +492,27 @@ export default function Dashboard() {
     setRandomPick(pool[Math.floor(Math.random() * pool.length)]);
   };
 
+  const handleAutoTagGenres = async () => {
+    setIsSyncingGenres(true);
+    toast({ title: "Syncing Genres...", description: "This will take a moment (to respect API limits)." });
+    try {
+      const token = await getToken();
+      const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+      const res = await fetch(`${baseUrl}/api/media/bulk-auto-genre`, {
+        method: "POST",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (!res.ok) throw new Error("Failed to sync");
+      const result = await res.json();
+      queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
+      toast({ title: "Sync Complete!", description: `Updated genres for ${result.updated} titles.` });
+    } catch (e) {
+      toast({ title: "Sync Error", description: "Failed to automatically fetch genres.", variant: "destructive" });
+    } finally {
+      setIsSyncingGenres(false);
+    }
+  };
+  
   // ── Render cards based on layout ──
   const renderCards = (items: any[]) => {
     if (cardLayout === "list") {
@@ -522,26 +544,7 @@ export default function Dashboard() {
         </div>
       );
     }
-    const handleAutoTagGenres = async () => {
-    setIsSyncingGenres(true);
-    toast({ title: "Syncing Genres...", description: "This will take a moment (to respect API limits)." });
-    try {
-      const token = await getToken();
-      const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
-      const res = await fetch(`${baseUrl}/api/media/bulk-auto-genre`, {
-        method: "POST",
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-      });
-      if (!res.ok) throw new Error("Failed to sync");
-      const result = await res.json();
-      queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
-      toast({ title: "Sync Complete!", description: `Updated genres for ${result.updated} titles.` });
-    } catch (e) {
-      toast({ title: "Sync Error", description: "Failed to automatically fetch genres.", variant: "destructive" });
-    } finally {
-      setIsSyncingGenres(false);
-    }
-  };
+
     // default: grid
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
