@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
 } from "@/components/ui/dialog";
 import {
   Users, UserPlus, BookOpen, Send, Check, X,
@@ -120,6 +120,7 @@ function SetupProfileDialog({ open, onDone, apiFetch }: {
           <DialogTitle className="font-display text-xl flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" /> Set Up Your Profile
           </DialogTitle>
+          <DialogDescription className="sr-only">Set up your username.</DialogDescription>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">Choose a username so friends can find you.</p>
         <div className="space-y-3">
@@ -188,6 +189,7 @@ function SendRecDialog({ open, onClose, friends, preselectedTitle, apiFetch }: {
           <DialogTitle className="font-display text-xl flex items-center gap-2">
             <Send className="w-5 h-5 text-primary" /> Send a Recommendation
           </DialogTitle>
+          <DialogDescription className="sr-only">Send a media recommendation to a friend.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -265,6 +267,7 @@ function FriendLibraryModal({ friend, onClose, onSendRec, apiFetch }: {
             <BookOpen className="w-5 h-5 text-primary" />
             {friend.friend?.displayName ?? friend.friend?.username ?? "This user"}'s Tier List & Reviews
           </DialogTitle>
+          <DialogDescription className="sr-only">View your friend's tier list and reviews.</DialogDescription>
         </DialogHeader>
 
         {!loading && !notShared && (
@@ -373,7 +376,14 @@ export default function FriendsPage() {
 
   useEffect(() => {
     apiFetch("/api/friends/profile/me")
-      .then(setProfile)
+      .then((data) => {
+        // If data is null, the user hasn't set up their profile yet.
+        if (!data) {
+          setShowSetup(true);
+        } else {
+          setProfile(data);
+        }
+      })
       .catch(() => setShowSetup(true))
       .finally(() => setProfileLoading(false));
   }, [apiFetch]);
