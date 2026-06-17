@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Users, UserPlus, BookOpen, Send, Check, X, Search, Heart, Inbox, Star, ToggleLeft, ToggleRight, ArrowLeft, Share2, Trophy, Flame, LayoutGrid } from "lucide-react";
+import { Users, UserPlus, BookOpen, Send, Check, X, Search, Heart, Inbox, Star, ToggleLeft, ToggleRight, ArrowLeft, Trophy, LayoutGrid } from "lucide-react";
 import { cn, proxyImage } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -12,7 +12,12 @@ interface UserProfile { id: number; clerkId: string; username: string; displayNa
 interface FriendEntry { friendshipId: number; friendId: string; friend: UserProfile | null; }
 interface FriendRequest { id: number; senderId: string; receiverId: string; status: string; createdAt: string; sender: UserProfile | null; }
 interface ReceivedRec { id: number; fromUserId: string; toUserId: string; title: string; category: string | null; coverUrl: string | null; readingUrl: string | null; message: string | null; isRead: boolean; createdAt: string; from: { username: string; displayName: string | null } | null; }
-interface FriendLibraryItem { id: number; title: string; category: string; status: string | null; coverUrl: string | null; customCoverUrl: string | null; tier: string | null; rating: number | null; reviewText: string | null; genres: string[]; currentChapter: string | null; readingUrl: string | null; }
+interface FriendLibraryItem { 
+  id: number; title: string; category: string; status: string | null; coverUrl: string | null; customCoverUrl: string | null; 
+  tier: string | null; rating: number | null; reviewText: string | null; genres: string[]; currentChapter: string | null; readingUrl: string | null;
+  // Detailed Ratings
+  worldBuilding?: number | null; art?: number | null; character?: number | null; concept?: number | null; originality?: number | null; translation?: number | null;
+}
 type GroupedLibrary = Record<string, FriendLibraryItem[]>;
 type ApiFetch = (path: string, options?: RequestInit) => Promise<any>;
 
@@ -33,6 +38,19 @@ function GenreTags({ genres }: { genres: string[] }) {
     <div className="flex flex-wrap gap-1 mt-1.5">
       {genres.slice(0, 3).map((g) => (<span key={g} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">{g}</span>))}
       {genres.length > 3 && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">+{genres.length - 3}</span>}
+    </div>
+  );
+}
+
+function DetailRatingBar({ label, value }: { label: string; value?: number | null }) {
+  if (value == null) return null;
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-xs font-medium w-24 text-muted-foreground">{label}</span>
+      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+        <div className="h-full bg-primary" style={{ width: `${value * 10}%` }}></div>
+      </div>
+      <span className="text-xs font-bold w-8 text-right">{value}/10</span>
     </div>
   );
 }
@@ -99,9 +117,12 @@ function SendRecDialog({ open, onClose, friends, preselectedTitle, apiFetch }: {
 // ── Friend Media Details Dialog ───────────────────────────────────────────────
 function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLibraryItem | null, open: boolean, onClose: () => void, onSendRec: (title: string) => void }) {
   if (!item) return null;
+  
+  const hasDetailedRatings = item.worldBuilding != null || item.art != null || item.character != null || item.concept != null || item.originality != null || item.translation != null;
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md sm:max-w-xl">
+      <DialogContent className="max-w-md sm:max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-xl leading-tight pr-4">{item.title}</DialogTitle>
           <DialogDescription className="sr-only">Details and review for {item.title}</DialogDescription>
@@ -131,19 +152,32 @@ function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLib
                 {item.rating != null && (
                   <div className="flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1.5 rounded-md border border-primary/20">
                     <Star className="w-4 h-4 fill-primary" />
-                    <span className="font-bold text-sm">{item.rating} / 10</span>
+                    <span className="font-bold text-sm">{item.rating} / 10 Overall</span>
                   </div>
                 )}
               </div>
             )}
 
+            {/* Detailed Sliders */}
+            {hasDetailedRatings && (
+              <div className="p-4 rounded-lg bg-card border border-border space-y-2.5 shadow-sm">
+                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Rating Breakdown</h4>
+                <DetailRatingBar label="World-building" value={item.worldBuilding} />
+                <DetailRatingBar label="Art/Animation" value={item.art} />
+                <DetailRatingBar label="Characters" value={item.character} />
+                <DetailRatingBar label="Concept" value={item.concept} />
+                <DetailRatingBar label="Originality" value={item.originality} />
+                <DetailRatingBar label="Translation" value={item.translation} />
+              </div>
+            )}
+
             {item.reviewText ? (
               <div className="p-4 rounded-lg bg-muted/50 border border-border">
-                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Friend's Review</h4>
+                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Review</h4>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{item.reviewText}</p>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground italic">No review provided.</p>
+              <p className="text-sm text-muted-foreground italic">No review text provided.</p>
             )}
           </div>
         </div>
@@ -181,7 +215,22 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
   const completedCount = allItems.filter(m => m.status === 'completed').length;
   const totalCount = allItems.length;
   const topFavorites = allItems.filter(m => m.tier === "S" || m.rating === 10).slice(0, 3);
-  const filteredItems = allItems.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.category.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  // Filter by search
+  const filteredItems = useMemo(() => {
+    return allItems.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.category.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [allItems, searchQuery]);
+
+  // Group by category (Manhwa, Webtoon, Manga, Anime, etc.)
+  const itemsByCategory = useMemo(() => {
+    const groups: Record<string, FriendLibraryItem[]> = {};
+    filteredItems.forEach(item => {
+      const cat = item.category || "uncategorized";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+    return groups;
+  }, [filteredItems]);
 
   if (loading) return <div className="flex justify-center py-24"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -241,8 +290,8 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
             </div>
           )}
 
-          {/* Library Grid */}
-          <div className="space-y-4 pt-4 border-t border-border">
+          {/* Categorized Library Grid */}
+          <div className="space-y-6 pt-4 border-t border-border">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <h2 className="text-xl font-display font-bold flex items-center gap-2"><LayoutGrid className="w-5 h-5 text-primary"/> Full Library</h2>
               <div className="relative w-full sm:w-64">
@@ -251,33 +300,42 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
-              {filteredItems.map(item => (
-                <div key={item.id} className="group relative cursor-pointer" onClick={() => setSelectedItem(item)}>
-                  <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
-                    {item.coverUrl || item.customCoverUrl ? (
-                      <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/30 text-xs p-4 text-center gap-2"><BookOpen className="w-5 h-5 text-muted-foreground/50" /><span className="text-muted-foreground">{item.title}</span></div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 gap-1.5">
-                      <Button size="sm" onClick={(e) => { e.stopPropagation(); onSendRec(item.title); }} className="w-full gap-2 h-8 text-xs bg-primary/90 hover:bg-primary"><Send className="w-3.5 h-3.5"/> Rec Back</Button>
-                    </div>
-                    {item.tier && <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center"><span className="text-xs font-display font-black text-yellow-400">{item.tier}</span></div>}
-                  </div>
-                  <div className="mt-2 space-y-0.5">
-                    <h3 className="font-medium text-sm leading-tight line-clamp-2">{item.title}</h3>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs capitalize font-medium text-muted-foreground">{item.category}</p>
-                      {item.rating != null && <p className="text-xs flex items-center gap-0.5"><Star className="w-3 h-3 fill-yellow-400 text-yellow-400" /> {item.rating}/10</p>}
-                    </div>
-                    <GenreTags genres={item.genres} />
-                    {item.reviewText && <p className="text-[10px] text-muted-foreground mt-1 italic line-clamp-2">"{item.reviewText}"</p>}
+            {Object.keys(itemsByCategory).length === 0 ? (
+              <p className="text-center text-muted-foreground py-8 text-sm">No items match your search.</p>
+            ) : (
+              Object.entries(itemsByCategory).map(([category, items]) => (
+                <div key={category} className="space-y-3">
+                  <h3 className="font-display text-lg font-bold capitalize flex items-center gap-2 border-b border-border pb-2">
+                    {category}
+                    <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{items.length}</span>
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
+                    {items.map(item => (
+                      <div key={item.id} className="group relative cursor-pointer" onClick={() => setSelectedItem(item)}>
+                        <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
+                          {item.coverUrl || item.customCoverUrl ? (
+                            <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/30 text-xs p-4 text-center gap-2"><BookOpen className="w-5 h-5 text-muted-foreground/50" /><span className="text-muted-foreground">{item.title}</span></div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 gap-1.5">
+                            <Button size="sm" onClick={(e) => { e.stopPropagation(); onSendRec(item.title); }} className="w-full gap-2 h-8 text-xs bg-primary/90 hover:bg-primary"><Send className="w-3.5 h-3.5"/> Rec Back</Button>
+                          </div>
+                          {item.tier && <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center"><span className="text-xs font-display font-black text-yellow-400">{item.tier}</span></div>}
+                        </div>
+                        <div className="mt-2 space-y-0.5">
+                          <h3 className="font-medium text-sm leading-tight line-clamp-2">{item.title}</h3>
+                          <div className="flex items-center gap-2">
+                            {item.rating != null && <p className="text-xs flex items-center gap-0.5"><Star className="w-3 h-3 fill-yellow-400 text-yellow-400" /> {item.rating}/10</p>}
+                          </div>
+                          <GenreTags genres={item.genres} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-            {filteredItems.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">No items match your search.</p>}
+              ))
+            )}
           </div>
         </div>
       )}
