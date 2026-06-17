@@ -23,6 +23,7 @@ interface UserProfile {
 }
 interface FriendEntry {
   friendshipId: number;
+  friendId: string;
   friend: UserProfile | null;
 }
 interface FriendRequest {
@@ -58,11 +59,6 @@ interface FriendLibraryItem {
   genres: string[];
   currentChapter: string | null;
   readingUrl: string | null;
-}
-interface FriendEntry {
-  friendshipId: number;
-  friendId: string;
-  friend: UserProfile | null;
 }
 
 type GroupedLibrary = Record<string, FriendLibraryItem[]>;
@@ -240,11 +236,11 @@ function FriendLibraryModal({ friend, onClose, onSendRec, apiFetch }: {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-  apiFetch(`/api/friends/${friend.friendId}/library`)
-    .then((data) => setGrouped(data.grouped))
-    .catch((e) => { if (e.message?.includes("not_shared") || e.message?.includes("403")) setNotShared(true); })
-    .finally(() => setLoading(false));
-}, [friend.friendId]);
+    apiFetch(`/api/friends/${friend.friendId}/library`)
+      .then((data) => setGrouped(data.grouped))
+      .catch((e) => { if (e.message?.includes("not_shared") || e.message?.includes("403")) setNotShared(true); })
+      .finally(() => setLoading(false));
+  }, [friend.friendId]);
 
   const tierColors: Record<string, string> = {
     S: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
@@ -400,11 +396,16 @@ export default function FriendsPage() {
 
       // load share status for each friend (am I sharing MY library with them?)
       const statuses = await Promise.all(
-  f.map(async (entry: FriendEntry) => {
-    const s = await apiFetch(`/api/friends/${entry.friendId}/share-status`).catch(() => ({ enabled: false }));
-    return [entry.friendId, s.enabled] as const;
-  })
-);
+        f.map(async (entry: FriendEntry) => {
+          const s = await apiFetch(`/api/friends/${entry.friendId}/share-status`).catch(() => ({ enabled: false }));
+          return [entry.friendId, s.enabled] as const;
+        })
+      );
+      setShareMap(Object.fromEntries(statuses));
+    } catch {
+      toast({ title: "Failed to load friends data", variant: "destructive" });
+    }
+  };
 
   const handleToggleShare = async (clerkId: string) => {
     const newVal = !shareMap[clerkId];
@@ -548,49 +549,53 @@ export default function FriendsPage() {
               <p className="font-medium">No friends yet</p>
               <p className="text-sm mt-1">Add a friend by username above!</p>
             </div>
-          {friends.map((f) => {
-  const isSharing = !!shareMap[f.friendId];
-  return (
-    <div key={f.friendshipId} className="p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors group">
-      <div className="flex items-center gap-3">
-        <Avatar profile={f.friend} size="md" />
-        <div className="flex-1 min-w-0">
-          {f.friend ? (
-            <>
-              <p className="font-medium text-sm">{f.friend.displayName ?? f.friend.username}</p>
-              <p className="text-xs text-muted-foreground">@{f.friend.username}</p>
-            </>
           ) : (
-            <>
-              <p className="font-medium text-sm text-muted-foreground italic">Profile not set up yet</p>
-              <p className="text-xs text-muted-foreground/60">They need to open OtakuVault once to finish setup</p>
-            </>
+            friends.map((f) => {
+              const isSharing = !!shareMap[f.friendId];
+              return (
+                <div key={f.friendshipId} className="p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <Avatar profile={f.friend} size="md" />
+                    <div className="flex-1 min-w-0">
+                      {f.friend ? (
+                        <>
+                          <p className="font-medium text-sm">{f.friend.displayName ?? f.friend.username}</p>
+                          <p className="text-xs text-muted-foreground">@{f.friend.username}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium text-sm text-muted-foreground italic">Profile not set up yet</p>
+                          <p className="text-xs text-muted-foreground/60">They need to open OtakuVault once to finish setup</p>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => setViewingFriend(f)}>
+                        <BookOpen className="w-3.5 h-3.5" /> Tier List
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs"
+                        onClick={() => { setSendRecTitle(""); setSendRecOpen(true); }}>
+                        <Send className="w-3.5 h-3.5" /> Rec
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                        onClick={() => handleUnfriend(f.friendshipId)}>
+                        Unfriend
+                      </Button>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleToggleShare(f.friendId)}
+                    className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isSharing ? <ToggleRight className="w-4 h-4 text-primary" /> : <ToggleLeft className="w-4 h-4" />}
+                    {isSharing ? "Sharing your tier list & reviews with them" : "Not sharing your tier list/reviews — click to share"}
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => setViewingFriend(f)}>
-            <BookOpen className="w-3.5 h-3.5" /> Tier List
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs"
-            onClick={() => { setSendRecTitle(""); setSendRecOpen(true); }}>
-            <Send className="w-3.5 h-3.5" /> Rec
-          </Button>
-          <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground hover:text-destructive"
-            onClick={() => handleUnfriend(f.friendshipId)}>
-            Unfriend
-          </Button>
-        </div>
-      </div>
-      <button
-        onClick={() => handleToggleShare(f.friendId)}
-        className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {isSharing ? <ToggleRight className="w-4 h-4 text-primary" /> : <ToggleLeft className="w-4 h-4" />}
-        {isSharing ? "Sharing your tier list & reviews with them" : "Not sharing your tier list/reviews — click to share"}
-      </button>
-    </div>
-  );
-})}
+      )}
 
       {tab === "requests" && (
         <div className="space-y-3">
