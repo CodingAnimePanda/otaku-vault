@@ -250,4 +250,58 @@ router.get("/media/proxy/mangadex", async (req, res) => {
   }
 });
 
+// Helper to delay requests to prevent API rate-limiting
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function fetchGenresForTitle(title: string, category: string): Promise<string[]> {
+  try {
+    if (category === "anime") {
+      const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1&sfw=true`;
+      const resp = await fetch(url);
+      if (!resp.ok) return [];
+      const json = await resp.json() as any;
+      if (!json.data?.length) return [];
+      return json.data[0].genres?.map((g: any) => g.name) || [];
+    } else {
+      const url = `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=1`;
+      const resp = await fetch(url);
+      if (!resp.ok) return [];
+      const json = await resp.json() as any;
+      if (!json.data?.length) return [];
+      const tags = json.data[0].attributes?.tags || [];
+      return tags.map((t: any) => t.attributes?.name?.en).filter(Boolean);
+    }
+  } catch (err) {
+    logger.warn({ err, title }, "Bulk genre fetch failed");
+    return [];
+  }
+}
+
+// POST /media/bulk-auto-genre
+router.post("/media/bulk-auto-genre", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  // Get all items that don't have genres set yet
+  const library = await db.select().from(mediaTable).where(eq(mediaTable.userId, userId));
+  const toUpdate = library.filter((m) => !m.genres || m.genres.length === 0);
+
+  let updatedCount = 0;
+
+  // Process sequentially to respect external API rate limits (Jikan allows 3 req/sec)
+  for (const item of toUpdate) {
+    const fetchedGenres = await fetchGenresForTitle(item.title, item.category);
+    if (fetchedGenres.length > 0) {
+      await db.update(mediaTable)
+        .set({ genres: fetchedGenres })
+        .where(eq(mediaTable.id, item.id));
+      updatedCount++;
+    }
+    // Sleep 600ms between items so we only make ~1.5 requests per second
+    await sleep(600); 
+  }
+
+  res.json({ updated: updatedCount, totalChecked: toUpdate.length });
+});
+
 export default router;

@@ -23,6 +23,7 @@ import { AddMediaDialog } from "@/components/add-media-dialog";
 import { EditMediaDialog } from "@/components/edit-media-dialog";
 import { cn, proxyImage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+Import { useAuth from } "@clerk/clerk-react
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -368,6 +369,8 @@ function MilestonesBanner({ milestones, onClose }: { milestones: typeof MILESTON
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
+  const [isSyncingGenres, setIsSyncingGenres] = useState(false);
+  const { getToken } = useAuth(); // Import useAuth from "@clerk/clerk-react" at the top if missing
   const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any | null>(null);
   const [, setLocation] = useLocation();
@@ -519,6 +522,26 @@ export default function Dashboard() {
         </div>
       );
     }
+    const handleAutoTagGenres = async () => {
+    setIsSyncingGenres(true);
+    toast({ title: "Syncing Genres...", description: "This will take a moment (to respect API limits)." });
+    try {
+      const token = await getToken();
+      const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+      const res = await fetch(`${baseUrl}/api/media/bulk-auto-genre`, {
+        method: "POST",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (!res.ok) throw new Error("Failed to sync");
+      const result = await res.json();
+      queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
+      toast({ title: "Sync Complete!", description: `Updated genres for ${result.updated} titles.` });
+    } catch (e) {
+      toast({ title: "Sync Error", description: "Failed to automatically fetch genres.", variant: "destructive" });
+    } finally {
+      setIsSyncingGenres(false);
+    }
+  };
     // default: grid
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
@@ -568,6 +591,12 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* PASTE THE AUTO-TAG BUTTON HERE */}
+          <Button variant="outline" size="sm" onClick={handleAutoTagGenres} disabled={isSyncingGenres} className="gap-2 hidden md:flex">
+            {isSyncingGenres ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} 
+            {isSyncingGenres ? "Tagging..." : "Auto-Tag"}
+          </Button>
+          
           <Button variant="outline" size="sm" onClick={handleRandomPick} className="gap-2 hidden sm:flex">
             <Shuffle className="w-4 h-4" /> Random
           </Button>
