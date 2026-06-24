@@ -390,7 +390,9 @@ export default function Dashboard() {
   const { data: stats } = useGetMediaStats();
   const { data: media, isLoading: mediaLoading } = useListMedia({ listType: "library" });
   const updateMedia = useUpdateMedia();
-  const mediaArray = Array.isArray(media) ? media : [];
+  const mediaArray = (Array.isArray(media) ? media : []).filter(
+    (m) => !["normie_tv", "normie_movie", "normie_book"].includes(m.category)
+  );
 
   // Sort function
   const applySort = useCallback((arr: any[]) => {
