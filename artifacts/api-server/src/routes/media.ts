@@ -162,6 +162,9 @@ router.get("/media/recommendations", async (req, res): Promise<void> => {
           if (!title || libraryTitles.has((title as string).toLowerCase())) continue;
           const coverRel = item.relationships?.find((r: any) =>
 
+// Helper to delay requests to prevent API rate-limiting
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // GET /media
 router.get("/media", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
@@ -291,9 +294,6 @@ router.get("/media/proxy/mangadex", async (req, res) => {
     res.status(500).json({ error: "MangaDex fetch failed" });
   }
 });
-
-// Helper to delay requests to prevent API rate-limiting
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function fetchGenresForTitle(title: string, category: string): Promise<string[]> {
   try {
