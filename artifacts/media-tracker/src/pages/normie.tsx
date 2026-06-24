@@ -31,7 +31,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
-type NormieType = "tv" | "movie";
+type NormieType = "tv" | "movie" | "book";
 const TIERS = ["S", "A", "B", "C", "D", "F"] as const;
 type Tier = (typeof TIERS)[number];
 
@@ -47,7 +47,7 @@ const TIER_CONFIG: Record<Tier, { color: string; bg: string }> = {
 // ── Add Normie Dialog ─────────────────────────────────────────────────────────
 const addSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  type: z.enum(["tv", "movie"]),
+  type: z.enum(["tv", "movie", "book"]),
   customCoverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 type AddFormValues = z.infer<typeof addSchema>;
@@ -108,6 +108,7 @@ function AddNormieDialog({ open, onClose, defaultType }: { open: boolean; onClos
                   <SelectContent>
                     <SelectItem value="tv">TV Show</SelectItem>
                     <SelectItem value="movie">Movie</SelectItem>
+                    <SelectItem value="book">Book</SelectItem>
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -144,28 +145,26 @@ function NormieLayout({ children }: { children: React.ReactNode }) {
     { href: "/normie", label: "Collection", icon: Home },
     { href: "/normie/tierlist/tv", label: "TV Tier List", icon: LayoutList },
     { href: "/normie/tierlist/movie", label: "Movie Tier List", icon: LayoutList },
+    { href: "/normie/tierlist/book", label: "Book Tier List", icon: LayoutList },
     { href: "/normie/recommended", label: "Recommended", icon: Star },
   ];
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      {/* Back to OtakuVault — at the very top */}
       <Link href="/"
         className="h-12 flex items-center gap-2 px-4 border-b border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 transition-colors flex-shrink-0">
         <ChevronLeft className="w-4 h-4" />
         Back to OtakuVault
       </Link>
 
-      {/* Normie header */}
       <div className="h-14 flex items-center px-6 border-b border-border flex-shrink-0">
         <Clapperboard className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
         <div>
           <h1 className="font-display font-bold text-base text-primary leading-none">Normie Stuff</h1>
-          <p className="text-[10px] text-muted-foreground mt-0.5">TV Shows & Movies</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">TV, Movies & Books</p>
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
         {navItems.map((item) => (
           <Link key={item.href} href={item.href}
@@ -183,17 +182,14 @@ function NormieLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Desktop sidebar */}
       <aside className="w-64 flex-shrink-0 border-r border-border bg-sidebar hidden md:flex flex-col">
         <SidebarContent />
       </aside>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Mobile drawer */}
       <aside className={cn(
         "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-border flex flex-col md:hidden transition-transform duration-300",
         mobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -227,14 +223,14 @@ function NormieCollection() {
   const [addOpen, setAddOpen] = useState(false);
   const [defaultType, setDefaultType] = useState<NormieType>("tv");
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<"all" | "tv" | "movie">("all");
+  const [tab, setTab] = useState<"all" | "tv" | "movie" | "book">("all");
 
   const { data: allMedia, isLoading } = useListMedia({ listType: "library" });
   const deleteMedia = useDeleteMedia();
 
   const normieItems = useMemo(() => {
     const arr = Array.isArray(allMedia) ? allMedia : [];
-    return arr.filter((m) => m.category === "normie_tv" || m.category === "normie_movie");
+    return arr.filter((m) => m.category === "normie_tv" || m.category === "normie_movie" || m.category === "normie_book");
   }, [allMedia]);
 
   const filtered = useMemo(() => {
@@ -249,6 +245,7 @@ function NormieCollection() {
 
   const tvCount = normieItems.filter((m) => m.category === "normie_tv").length;
   const movieCount = normieItems.filter((m) => m.category === "normie_movie").length;
+  const bookCount = normieItems.filter((m) => m.category === "normie_book").length;
 
   const handleDelete = (id: number) => {
     deleteMedia.mutate({ id }, {
@@ -272,13 +269,16 @@ function NormieCollection() {
             <div>
               <h1 className="text-3xl font-display font-bold">The Normie Stuff</h1>
               <p className="text-muted-foreground text-sm mt-0.5">
-                {tvCount} TV show{tvCount !== 1 ? "s" : ""} · {movieCount} movie{movieCount !== 1 ? "s" : ""}
+                {tvCount} TV show{tvCount !== 1 ? "s" : ""} · {movieCount} movie{movieCount !== 1 ? "s" : ""} · {bookCount} book{bookCount !== 1 ? "s" : ""}
               </p>
             </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" className="gap-2 hidden sm:flex" onClick={() => openAdd("tv")}>
               <Tv2 className="w-4 h-4" /> Add TV Show
+            </Button>
+            <Button variant="outline" className="gap-2 hidden sm:flex" onClick={() => openAdd("book")}>
+              <BookOpen className="w-4 h-4" /> Add Book
             </Button>
             <Button className="gap-2" onClick={() => openAdd("movie")}>
               <Clapperboard className="w-4 h-4" /> Add Movie
@@ -289,12 +289,12 @@ function NormieCollection() {
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1.5">
-          {(["all", "tv", "movie"] as const).map((t) => (
+          {(["all", "tv", "movie", "book"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all border capitalize",
                 tab === t ? "bg-primary text-primary-foreground border-transparent" : "bg-card border-border text-muted-foreground hover:text-foreground"
               )}>
-              {t === "tv" ? "TV Shows" : t === "movie" ? "Movies" : "All"}
+              {t === "tv" ? "TV Shows" : t === "movie" ? "Movies" : t === "book" ? "Books" : "All"}
             </button>
           ))}
         </div>
@@ -318,9 +318,10 @@ function NormieCollection() {
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Clapperboard className="w-12 h-12 text-muted-foreground/30 mb-4" />
             <h3 className="font-display font-semibold text-xl mb-2">Nothing here yet</h3>
-            <p className="text-muted-foreground text-sm max-w-sm mb-6">Add the TV shows and movies you've watched or want to watch.</p>
-            <div className="flex gap-3">
+            <p className="text-muted-foreground text-sm max-w-sm mb-6">Add the TV shows, movies, and books you've watched or read.</p>
+            <div className="flex gap-3 flex-wrap justify-center">
               <Button variant="outline" className="gap-2" onClick={() => openAdd("tv")}><Tv2 className="w-4 h-4" /> Add TV Show</Button>
+              <Button variant="outline" className="gap-2" onClick={() => openAdd("book")}><BookOpen className="w-4 h-4" /> Add Book</Button>
               <Button className="gap-2" onClick={() => openAdd("movie")}><Clapperboard className="w-4 h-4" /> Add Movie</Button>
             </div>
           </CardContent>
@@ -340,7 +341,9 @@ function NormieCollection() {
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/30 text-xs p-4 text-center gap-2">
-                    {item.category === "normie_tv" ? <Tv2 className="w-5 h-5 text-muted-foreground/50" /> : <Clapperboard className="w-5 h-5 text-muted-foreground/50" />}
+                    {item.category === "normie_tv" ? <Tv2 className="w-5 h-5 text-muted-foreground/50" />
+                      : item.category === "normie_book" ? <BookOpen className="w-5 h-5 text-muted-foreground/50" />
+                      : <Clapperboard className="w-5 h-5 text-muted-foreground/50" />}
                     <span className="text-muted-foreground">{item.title}</span>
                   </div>
                 )}
@@ -353,7 +356,7 @@ function NormieCollection() {
                   </Button>
                 </div>
                 <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-sm text-[9px] font-medium text-white/80">
-                  {item.category === "normie_tv" ? "TV" : "Movie"}
+                  {item.category === "normie_tv" ? "TV" : item.category === "normie_book" ? "Book" : "Movie"}
                 </div>
                 {item.tier && (
                   <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center">
@@ -402,7 +405,7 @@ function NormieTierList({ type }: { type: NormieType }) {
     else unranked.push(item);
   });
 
-  const label = type === "tv" ? "TV Shows" : "Movies";
+  const label = type === "tv" ? "TV Shows" : type === "book" ? "Books" : "Movies";
 
   return (
     <div className="space-y-6">
@@ -492,8 +495,12 @@ function NormieRecommended() {
     { title: "The Shawshank Redemption", type: "movie", year: "1994", note: "All-time classic" },
     { title: "Dune: Part Two", type: "movie", year: "2024", note: "Sci-fi epic" },
     { title: "Shogun", type: "tv", year: "2024", note: "Feudal Japan drama" },
+    { title: "The Name of the Wind", type: "book", year: "2007", note: "Fantasy epic by Patrick Rothfuss" },
+    { title: "Project Hail Mary", type: "book", year: "2021", note: "Gripping sci-fi survival story" },
+    { title: "The Night Circus", type: "book", year: "2011", note: "Lush magical realism" },
+    { title: "Piranesi", type: "book", year: "2020", note: "Mysterious and unlike anything else" },
   ];
-  const [tab, setTab] = useState<"all" | "tv" | "movie">("all");
+  const [tab, setTab] = useState<"all" | "tv" | "movie" | "book">("all");
   const filtered = tab === "all" ? popular : popular.filter((p) => p.type === tab);
 
   return (
@@ -504,16 +511,16 @@ function NormieRecommended() {
         </div>
         <div>
           <h1 className="text-3xl font-display font-bold">Recommended</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Highly rated TV shows & movies</p>
+          <p className="text-muted-foreground text-sm mt-0.5">Highly rated TV shows, movies & books</p>
         </div>
       </div>
       <div className="flex gap-2">
-        {(["all", "tv", "movie"] as const).map((t) => (
+        {(["all", "tv", "movie", "book"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all border capitalize",
               tab === t ? "bg-primary text-primary-foreground border-transparent" : "bg-card border-border text-muted-foreground hover:text-foreground"
             )}>
-            {t === "tv" ? "TV Shows" : t === "movie" ? "Movies" : "All"}
+            {t === "tv" ? "TV Shows" : t === "movie" ? "Movies" : t === "book" ? "Books" : "All"}
           </button>
         ))}
       </div>
@@ -521,7 +528,9 @@ function NormieRecommended() {
         {filtered.map((item, idx) => (
           <div key={idx} className="flex gap-3 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary/10">
-              {item.type === "tv" ? <Tv2 className="w-5 h-5 text-primary" /> : <Clapperboard className="w-5 h-5 text-primary" />}
+              {item.type === "tv" ? <Tv2 className="w-5 h-5 text-primary" />
+                : item.type === "book" ? <BookOpen className="w-5 h-5 text-primary" />
+                : <Clapperboard className="w-5 h-5 text-primary" />}
             </div>
             <div>
               <h3 className="font-medium text-sm">{item.title}</h3>
@@ -538,10 +547,12 @@ function NormieRecommended() {
 export default function NormiePage() {
   const [matchTierTV] = useRoute("/normie/tierlist/tv");
   const [matchTierMovie] = useRoute("/normie/tierlist/movie");
+  const [matchTierBook] = useRoute("/normie/tierlist/book");
   const [matchRecommended] = useRoute("/normie/recommended");
 
   const content = matchTierTV ? <NormieTierList type="tv" />
     : matchTierMovie ? <NormieTierList type="movie" />
+    : matchTierBook ? <NormieTierList type="book" />
     : matchRecommended ? <NormieRecommended />
     : <NormieCollection />;
 
