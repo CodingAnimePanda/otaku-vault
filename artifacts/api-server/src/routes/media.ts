@@ -116,9 +116,51 @@ router.get("/media/recommendations", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  // Return an empty array for now to stop the 404 error
-  res.json([]); 
-});
+  const { category } = req.query as { category?: string };
+
+  try {
+    const library = await db.select().from(mediaTable).where(eq(mediaTable.userId, userId));
+    const libraryTitles = new Set(library.map((m) => m.title.toLowerCase()));
+
+    const results: any[] = [];
+
+    const categoriesToFetch = category
+      ? [category]
+      : ["manhwa", "manga", "webtoon", "anime"];
+
+    for (const cat of categoriesToFetch) {
+      if (cat === "anime") {
+        // Jikan top anime
+        const resp = await fetch("https://api.jikan.moe/v4/top/anime?limit=20&filter=bypopularity");
+        if (!resp.ok) continue;
+        const json = await resp.json() as any;
+        for (const item of json.data ?? []) {
+          if (libraryTitles.has(item.title?.toLowerCase())) continue;
+          results.push({
+            title: item.title,
+            category: "anime",
+            coverUrl: item.images?.jpg?.large_image_url ?? null,
+            genres: item.genres?.map((g: any) => g.name) ?? [],
+            score: item.score ?? null,
+            synopsis: item.synopsis ?? null,
+            source: "MyAnimeList",
+          });
+        }
+        await sleep(400);
+      } else {
+        // MangaDex — map category to content type
+        const typeMap: Record<string, string> = {
+          manga: "manga", manhwa: "manhwa", manhua: "manhua", webtoon: "manhwa",
+        };
+        const mdType = typeMap[cat] ?? "manga";
+        const url = `https://api.mangadex.org/manga?limit=20&order[followedCount]=desc&originalLanguage[]=${mdType === "manhwa" ? "ko" : mdType === "manhua" ? "zh" : "ja"}&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art`;
+        const resp = await fetch(url);
+        if (!resp.ok) continue;
+        const json = await resp.json() as any;
+        for (const item of json.data ?? []) {
+          const title = item.attributes?.title?.en ?? Object.values(item.attributes?.title ?? {})[0] ?? "";
+          if (!title || libraryTitles.has((title as string).toLowerCase())) continue;
+          const coverRel = item.relationships?.find((r: any) =>
 
 // GET /media
 router.get("/media", async (req, res): Promise<void> => {
