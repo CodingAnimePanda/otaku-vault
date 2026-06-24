@@ -2,7 +2,7 @@ import React from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useGetMediaStats, useListMedia } from "@workspace/api-client-react";
 import { proxyImage } from "@/lib/utils";
-import { Trophy, BookOpen, Flame, Star, Share2 } from "lucide-react";
+import { Trophy, BookOpen, Star, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -69,12 +69,12 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="p-5 rounded-xl border border-border bg-card/50 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
-            <Flame className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-500">
+            <Star className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-2xl font-black">7 Days</p>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Reading Streak</p>
+            <p className="text-2xl font-black">{mediaArray.filter(m => m.rating && m.rating > 0).length > 0 ? (mediaArray.filter(m => m.rating && m.rating > 0).reduce((a, b) => a + (b.rating ?? 0), 0) / mediaArray.filter(m => m.rating && m.rating > 0).length).toFixed(1) : "—"}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Avg Rating</p>
           </div>
         </div>
       </div>
