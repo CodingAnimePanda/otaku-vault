@@ -125,5 +125,37 @@ export const insertLibrarySharingSchema = createInsertSchema(librarySharingTable
   id: true,
   createdAt: true,
 });
+
 export type InsertLibrarySharing = z.infer<typeof insertLibrarySharingSchema>;
+// --- Quotes ---
+export const quotesTable = pgTable("quotes", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  quote: text("quote").notNull(),
+  character: text("character").notNull().default(""),
+  mediaTitle: text("media_title").notNull(),
+  category: text("category").notNull().default("other"),
+  context: text("context").notNull().default(""),
+  readingUrl: text("reading_url").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Quote = typeof quotesTable.$inferSelect;
+
+// --- Moments ---
+export const momentsTable = pgTable("moments", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  title: text("title").notNull(),
+  scene: text("scene").notNull().default(""),
+  category: text("category").notNull().default("other"),
+  notes: text("notes").notNull().default(""),
+  images: text("images").array().notNull().default([]),
+  chapter: text("chapter").notNull().default(""),
+  page: text("page").notNull().default(""),
+  readingUrl: text("reading_url").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Moment = typeof momentsTable.$inferSelect;
 export type LibrarySharing = typeof librarySharingTable.$inferSelect;

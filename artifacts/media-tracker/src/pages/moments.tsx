@@ -1,31 +1,28 @@
 // artifacts/media-tracker/src/pages/moments.tsx
 import React, { useState, useMemo, useRef } from "react";
 import { useListMedia } from "@workspace/api-client-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Sparkles, Plus, Trash2, Search, Upload, Link as LinkIcon,
-  ImageIcon, ExternalLink, ChevronLeft, ChevronRight, X,
+  ImageIcon, ExternalLink, ChevronLeft, ChevronRight, X, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@clerk/clerk-react";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 interface Moment {
-  id: string;
+  id: number;
   title: string;
   scene: string;
-  category: "webtoon" | "manhwa" | "manga" | "anime" | "other";
+  category: string;
   notes: string;
-  images: string[];   // multiple images
+  images: string[];
   chapter: string;
   page: string;
   readingUrl: string;
@@ -42,30 +39,17 @@ const CATEGORY_COLORS: Record<string, string> = {
   other:   "text-muted-foreground bg-muted border-border",
 };
 
-// ── Storage ───────────────────────────────────────────────────────────────────
-function loadMoments(): Moment[] {
-  try {
-    const stored = localStorage.getItem("ov_moments");
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Migrate old single-image moments
-      return parsed.map((m: any) => ({
-        ...m,
-        images: m.images ?? (m.imageUrl ? [m.imageUrl] : []),
-        chapter: m.chapter ?? "",
-        page: m.page ?? "",
-        readingUrl: m.readingUrl ?? "",
-      }));
-    }
-  } catch {}
-  return [];
+const API_BASE = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+
+function useApiHeaders() {
+  const { getToken } = useAuth();
+  return async () => {
+    const token = await getToken();
+    return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  };
 }
 
-function saveMoments(moments: Moment[]) {
-  try { localStorage.setItem("ov_moments", JSON.stringify(moments)); } catch {}
-}
-
-// ── Image Gallery (scrollable) ────────────────────────────────────────────────
+// ── Image Gallery ─────────────────────────────────────────────────────────────
 function ImageGallery({ images }: { images: string[] }) {
   const [idx, setIdx] = useState(0);
   if (!images.length) return (
@@ -75,24 +59,16 @@ function ImageGallery({ images }: { images: string[] }) {
   );
   return (
     <div className="relative aspect-video overflow-hidden bg-muted group/gallery">
-      <img
-        src={images[idx]}
-        alt={`Image ${idx + 1}`}
-        className="w-full h-full object-cover transition-transform duration-500"
-        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-      />
+      <img src={images[idx]} alt={`Image ${idx + 1}`} className="w-full h-full object-cover"
+        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
       {images.length > 1 && (
         <>
-          <button
-            onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)}
-            className="absolute left-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white opacity-0 group-hover/gallery:opacity-100 transition-opacity hover:bg-black/70"
-          >
+          <button onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)}
+            className="absolute left-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white opacity-0 group-hover/gallery:opacity-100 transition-opacity hover:bg-black/70">
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => setIdx((i) => (i + 1) % images.length)}
-            className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white opacity-0 group-hover/gallery:opacity-100 transition-opacity hover:bg-black/70"
-          >
+          <button onClick={() => setIdx((i) => (i + 1) % images.length)}
+            className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white opacity-0 group-hover/gallery:opacity-100 transition-opacity hover:bg-black/70">
             <ChevronRight className="w-4 h-4" />
           </button>
           <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
@@ -113,14 +89,14 @@ function ImageGallery({ images }: { images: string[] }) {
 // ── Add Moment Dialog ─────────────────────────────────────────────────────────
 function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
   open: boolean; onClose: () => void;
-  onAdd: (moment: Omit<Moment, "id" | "createdAt">) => void;
+  onAdd: (data: Omit<Moment, "id" | "createdAt">) => void;
   libraryMedia: any[];
 }) {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [scene, setScene] = useState("");
-  const [category, setCategory] = useState<Moment["category"]>("manhwa");
+  const [category, setCategory] = useState("manhwa");
   const [notes, setNotes] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [imageTab, setImageTab] = useState<"url" | "upload">("url");
@@ -134,15 +110,13 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
     setTitle(""); setScene(""); setCategory("manhwa"); setNotes("");
     setImages([]); setUrlInput(""); setChapter(""); setPage(""); setReadingUrl("");
   };
-
   React.useEffect(() => { if (!open) reset(); }, [open]);
 
-  // Auto-fill readingUrl when title matches a library item
   React.useEffect(() => {
     if (!title.trim()) return;
     const match = libraryMedia.find((m) => m.title.toLowerCase() === title.toLowerCase());
     if (match?.readingUrl) setReadingUrl(match.readingUrl);
-    if (match?.category) setCategory(match.category as Moment["category"]);
+    if (match?.category) setCategory(match.category);
   }, [title, libraryMedia]);
 
   const handleAddUrl = () => {
@@ -155,10 +129,7 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     const tooBig = files.find((f) => f.size > 5 * 1024 * 1024);
-    if (tooBig) {
-      toast({ title: "File too large", description: "Each image must be under 5MB.", variant: "destructive" });
-      return;
-    }
+    if (tooBig) { toast({ title: "File too large", description: "Each image must be under 5MB.", variant: "destructive" }); return; }
     setUploading(true);
     let done = 0;
     const results: string[] = [];
@@ -167,18 +138,15 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
       reader.onload = () => {
         results[i] = reader.result as string;
         done++;
-        if (done === files.length) {
-          setImages((prev) => [...prev, ...results]);
-          setUploading(false);
-        }
+        if (done === files.length) { setImages((prev) => [...prev, ...results]); setUploading(false); }
       };
       reader.readAsDataURL(file);
     });
   };
 
-  const handleRemoveImage = (i: number) => {
-    setImages((prev) => prev.filter((_, idx) => idx !== i));
-  };
+  const titleSuggestions = title.length > 1
+    ? libraryMedia.filter((m) => m.title.toLowerCase().includes(title.toLowerCase())).slice(0, 4)
+    : [];
 
   const handleSubmit = () => {
     if (!title.trim()) { toast({ title: "Title is required", variant: "destructive" }); return; }
@@ -186,30 +154,22 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
     onClose();
   };
 
-  const titleSuggestions = title.length > 1
-    ? libraryMedia.filter((m) => m.title.toLowerCase().includes(title.toLowerCase())).slice(0, 4)
-    : [];
-
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-xl flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            Add a Favorite Moment
+            <Sparkles className="w-5 h-5 text-primary" /> Add a Favorite Moment
           </DialogTitle>
         </DialogHeader>
-
         <div className="space-y-4">
-          {/* Title with autocomplete */}
           <div className="space-y-1.5 relative">
             <label className="text-sm font-medium">Media Title</label>
             <Input placeholder="e.g. Solo Leveling" value={title} onChange={(e) => setTitle(e.target.value)} />
             {titleSuggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 z-10 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
                 {titleSuggestions.map((m) => (
-                  <button key={m.id} type="button"
-                    onClick={() => setTitle(m.title)}
+                  <button key={m.id} type="button" onClick={() => setTitle(m.title)}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2">
                     <span className="text-muted-foreground capitalize text-xs">{m.category}</span>
                     {m.title}
@@ -218,7 +178,6 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
               </div>
             )}
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Scene / Character</label>
@@ -226,7 +185,7 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Category</label>
-              <Select value={category} onValueChange={(v) => setCategory(v as Moment["category"])}>
+              <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
@@ -234,8 +193,6 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
               </Select>
             </div>
           </div>
-
-          {/* Chapter + Page */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-muted-foreground">Chapter (optional)</label>
@@ -246,8 +203,6 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
               <Input placeholder="e.g. 14" value={page} onChange={(e) => setPage(e.target.value)} />
             </div>
           </div>
-
-          {/* Reading URL */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-muted-foreground">Reading Link (optional)</label>
             <div className="relative">
@@ -255,16 +210,13 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
               <Input placeholder="https://..." value={readingUrl} onChange={(e) => setReadingUrl(e.target.value)} className="pl-9 text-xs" />
             </div>
           </div>
-
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Notes</label>
             <Textarea placeholder="Why does this moment hit so hard?" value={notes}
               onChange={(e) => setNotes(e.target.value)} rows={3} className="resize-none text-sm" />
           </div>
-
-          {/* Images */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Images (optional — add as many as you want)</label>
+            <label className="text-sm font-medium">Images (optional)</label>
             <div className="flex gap-2">
               <button onClick={() => setImageTab("url")}
                 className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
@@ -277,7 +229,6 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
                 <Upload className="w-3 h-3" /> Upload Files
               </button>
             </div>
-
             {imageTab === "url" ? (
               <div className="flex gap-2">
                 <Input placeholder="https://i.imgur.com/example.jpg" value={urlInput}
@@ -290,25 +241,21 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
               <div onClick={() => fileRef.current?.click()}
                 className="border-2 border-dashed border-border rounded-xl p-4 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all">
                 <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileUpload} />
-                {uploading ? (
-                  <p className="text-sm text-muted-foreground">Loading...</p>
-                ) : (
+                {uploading ? <p className="text-sm text-muted-foreground">Loading...</p> : (
                   <div className="flex flex-col items-center gap-1">
                     <Upload className="w-6 h-6 text-muted-foreground/50" />
                     <p className="text-sm text-muted-foreground">Click to upload images</p>
-                    <p className="text-xs text-muted-foreground/60">Multiple files supported, up to 5MB each</p>
+                    <p className="text-xs text-muted-foreground/60">Multiple files, up to 5MB each</p>
                   </div>
                 )}
               </div>
             )}
-
-            {/* Image preview strip */}
             {images.length > 0 && (
               <div className="flex gap-2 flex-wrap mt-1">
                 {images.map((img, i) => (
                   <div key={i} className="relative group/img">
                     <img src={img} alt={`img ${i + 1}`} className="w-16 h-16 object-cover rounded-lg border border-border" />
-                    <button onClick={() => handleRemoveImage(i)}
+                    <button onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
                       className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-destructive rounded-full flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
                       <X className="w-2.5 h-2.5 text-white" />
                     </button>
@@ -317,7 +264,6 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
               </div>
             )}
           </div>
-
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={!title.trim()}>
@@ -332,27 +278,49 @@ function AddMomentDialog({ open, onClose, onAdd, libraryMedia }: {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function MomentsPage() {
-  const [moments, setMoments] = useState<Moment[]>(loadMoments);
   const [addOpen, setAddOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const getHeaders = useApiHeaders();
 
   const { data: libraryData } = useListMedia({ listType: "library" });
   const libraryMedia = Array.isArray(libraryData) ? libraryData : [];
 
-  const handleAdd = (data: Omit<Moment, "id" | "createdAt">) => {
-    const newMoment: Moment = { ...data, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    const updated = [newMoment, ...moments];
-    setMoments(updated);
-    saveMoments(updated);
-  };
+  const { data: moments = [], isLoading } = useQuery<Moment[]>({
+    queryKey: ["moments"],
+    queryFn: async () => {
+      const headers = await getHeaders();
+      const res = await fetch(`${API_BASE}/api/moments`, { headers });
+      if (!res.ok) throw new Error("Failed to fetch moments");
+      return res.json();
+    },
+  });
 
-  const handleDelete = (id: string) => {
-    const updated = moments.filter((m) => m.id !== id);
-    setMoments(updated);
-    saveMoments(updated);
-  };
+  const addMutation = useMutation({
+    mutationFn: async (data: Omit<Moment, "id" | "createdAt">) => {
+      const headers = await getHeaders();
+      const res = await fetch(`${API_BASE}/api/moments`, { method: "POST", headers, body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed to save moment");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["moments"] });
+      toast({ title: "Moment saved!" });
+    },
+    onError: () => toast({ title: "Failed to save moment", variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const headers = await getHeaders();
+      await fetch(`${API_BASE}/api/moments/${id}`, { method: "DELETE", headers });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["moments"] }),
+    onError: () => toast({ title: "Failed to delete moment", variant: "destructive" }),
+  });
 
   const filtered = useMemo(() => {
     let items = moments;
@@ -370,7 +338,6 @@ export default function MomentsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="relative rounded-2xl bg-gradient-to-br from-primary/10 via-accent/5 to-transparent border border-primary/20 p-6 overflow-hidden">
         <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full -translate-y-10 translate-x-10 blur-2xl" />
         <div className="relative flex items-center justify-between">
@@ -391,7 +358,6 @@ export default function MomentsPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1.5 flex-wrap">
           <button onClick={() => setActiveCategory(null)}
@@ -410,8 +376,11 @@ export default function MomentsPage() {
         </div>
       </div>
 
-      {/* Moments grid */}
-      {moments.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : moments.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Sparkles className="w-12 h-12 text-muted-foreground/30 mb-4" />
@@ -430,7 +399,6 @@ export default function MomentsPage() {
           {filtered.map((moment) => (
             <div key={moment.id} className="group rounded-2xl bg-card border border-border hover:border-primary/30 transition-all overflow-hidden">
               <ImageGallery images={moment.images} />
-
               <div className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
@@ -444,11 +412,10 @@ export default function MomentsPage() {
                       </p>
                     )}
                   </div>
-                  <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border flex-shrink-0 capitalize", CATEGORY_COLORS[moment.category])}>
+                  <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border flex-shrink-0 capitalize", CATEGORY_COLORS[moment.category] ?? CATEGORY_COLORS.other)}>
                     {moment.category}
                   </span>
                 </div>
-
                 {moment.notes && (
                   <div>
                     <p className={cn("text-xs text-muted-foreground leading-relaxed", expanded === moment.id ? "" : "line-clamp-3")}>
@@ -462,7 +429,6 @@ export default function MomentsPage() {
                     )}
                   </div>
                 )}
-
                 <div className="flex items-center justify-between pt-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-muted-foreground">{new Date(moment.createdAt).toLocaleDateString()}</span>
@@ -475,7 +441,7 @@ export default function MomentsPage() {
                   </div>
                   <Button size="sm" variant="ghost"
                     className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
-                    onClick={() => handleDelete(moment.id)}>
+                    onClick={() => deleteMutation.mutate(moment.id)}>
                     <Trash2 className="w-3 h-3" />
                   </Button>
                 </div>
@@ -485,7 +451,7 @@ export default function MomentsPage() {
         </div>
       )}
 
-      <AddMomentDialog open={addOpen} onClose={() => setAddOpen(false)} onAdd={handleAdd} libraryMedia={libraryMedia} />
+      <AddMomentDialog open={addOpen} onClose={() => setAddOpen(false)} onAdd={(data) => addMutation.mutate(data)} libraryMedia={libraryMedia} />
     </div>
   );
 }

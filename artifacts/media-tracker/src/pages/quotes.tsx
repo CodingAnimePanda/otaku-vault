@@ -1,26 +1,24 @@
 // artifacts/media-tracker/src/pages/quotes.tsx
 import React, { useState, useMemo } from "react";
 import { useListMedia } from "@workspace/api-client-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Quote, Plus, Trash2, Search, Copy, Check, ExternalLink } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Quote, Plus, Trash2, Search, Copy, Check, ExternalLink, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@clerk/clerk-react";
 
 interface SavedQuote {
-  id: string;
+  id: number;
   quote: string;
   character: string;
   mediaTitle: string;
-  category: "webtoon" | "manhwa" | "manga" | "anime" | "other";
+  category: string;
   context: string;
   readingUrl: string;
   createdAt: string;
@@ -45,44 +43,38 @@ const QUOTE_ACCENT_COLORS = [
   "from-blue-500/10 border-blue-500/20",
 ];
 
-function loadQuotes(): SavedQuote[] {
-  try {
-    const stored = localStorage.getItem("ov_quotes");
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return parsed.map((q: any) => ({ ...q, readingUrl: q.readingUrl ?? "" }));
-    }
-  } catch {}
-  return [];
-}
+const API_BASE = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
 
-function saveQuotes(quotes: SavedQuote[]) {
-  try { localStorage.setItem("ov_quotes", JSON.stringify(quotes)); } catch {}
+function useApiHeaders() {
+  const { getToken } = useAuth();
+  return async () => {
+    const token = await getToken();
+    return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  };
 }
 
 // ── Add Quote Dialog ──────────────────────────────────────────────────────────
 function AddQuoteDialog({ open, onClose, onAdd, libraryMedia }: {
   open: boolean; onClose: () => void;
-  onAdd: (quote: Omit<SavedQuote, "id" | "createdAt">) => void;
+  onAdd: (data: Omit<SavedQuote, "id" | "createdAt">) => void;
   libraryMedia: any[];
 }) {
   const { toast } = useToast();
   const [quote, setQuote] = useState("");
   const [character, setCharacter] = useState("");
   const [mediaTitle, setMediaTitle] = useState("");
-  const [category, setCategory] = useState<SavedQuote["category"]>("manhwa");
+  const [category, setCategory] = useState("manhwa");
   const [context, setContext] = useState("");
   const [readingUrl, setReadingUrl] = useState("");
 
   const reset = () => { setQuote(""); setCharacter(""); setMediaTitle(""); setCategory("manhwa"); setContext(""); setReadingUrl(""); };
   React.useEffect(() => { if (!open) reset(); }, [open]);
 
-  // Auto-fill when title matches library
   React.useEffect(() => {
     if (!mediaTitle.trim()) return;
     const match = libraryMedia.find((m) => m.title.toLowerCase() === mediaTitle.toLowerCase());
     if (match?.readingUrl) setReadingUrl(match.readingUrl);
-    if (match?.category) setCategory(match.category as SavedQuote["category"]);
+    if (match?.category) setCategory(match.category);
   }, [mediaTitle, libraryMedia]);
 
   const titleSuggestions = mediaTitle.length > 1
@@ -104,14 +96,12 @@ function AddQuoteDialog({ open, onClose, onAdd, libraryMedia }: {
             <Quote className="w-5 h-5 text-primary" /> Save a Quote
           </DialogTitle>
         </DialogHeader>
-
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">The Quote</label>
             <Textarea placeholder='"I alone am the exception."' value={quote}
               onChange={(e) => setQuote(e.target.value)} rows={3} className="resize-none text-sm" />
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Character</label>
@@ -119,7 +109,7 @@ function AddQuoteDialog({ open, onClose, onAdd, libraryMedia }: {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Category</label>
-              <Select value={category} onValueChange={(v) => setCategory(v as SavedQuote["category"])}>
+              <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
@@ -127,16 +117,13 @@ function AddQuoteDialog({ open, onClose, onAdd, libraryMedia }: {
               </Select>
             </div>
           </div>
-
-          {/* Title with autocomplete */}
           <div className="space-y-1.5 relative">
             <label className="text-sm font-medium">From</label>
             <Input placeholder="e.g. Solo Leveling" value={mediaTitle} onChange={(e) => setMediaTitle(e.target.value)} />
             {titleSuggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 z-10 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
                 {titleSuggestions.map((m) => (
-                  <button key={m.id} type="button"
-                    onClick={() => setMediaTitle(m.title)}
+                  <button key={m.id} type="button" onClick={() => setMediaTitle(m.title)}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2">
                     <span className="text-muted-foreground capitalize text-xs">{m.category}</span>
                     {m.title}
@@ -145,12 +132,10 @@ function AddQuoteDialog({ open, onClose, onAdd, libraryMedia }: {
               </div>
             )}
           </div>
-
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-muted-foreground">Scene context (optional)</label>
             <Input placeholder="e.g. Chapter 120, after the boss fight" value={context} onChange={(e) => setContext(e.target.value)} />
           </div>
-
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-muted-foreground">Reading Link (optional)</label>
             <div className="relative">
@@ -158,7 +143,6 @@ function AddQuoteDialog({ open, onClose, onAdd, libraryMedia }: {
               <Input placeholder="https://..." value={readingUrl} onChange={(e) => setReadingUrl(e.target.value)} className="pl-9 text-xs" />
             </div>
           </div>
-
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={!quote.trim() || !mediaTitle.trim()}>
@@ -174,33 +158,25 @@ function AddQuoteDialog({ open, onClose, onAdd, libraryMedia }: {
 // ── Quote Card ────────────────────────────────────────────────────────────────
 function QuoteCard({ quote, onDelete, colorClass }: { quote: SavedQuote; onDelete: () => void; colorClass: string }) {
   const [copied, setCopied] = useState(false);
-
   const handleCopy = () => {
     const text = `"${quote.quote}"${quote.character ? ` — ${quote.character}` : ""}${quote.mediaTitle ? `, ${quote.mediaTitle}` : ""}`;
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   };
-
   return (
     <div className={cn("group relative rounded-2xl bg-gradient-to-br to-transparent border p-5 transition-all hover:scale-[1.01]", colorClass)}>
       <div className="absolute top-3 left-4 text-6xl font-serif text-primary/10 leading-none select-none">"</div>
-
       <div className="relative space-y-3">
         <p className="text-sm leading-relaxed font-medium pt-4 italic">"{quote.quote}"</p>
-
         <div className="flex items-end justify-between gap-2">
           <div>
             {quote.character && <p className="text-xs font-semibold text-foreground/80">— {quote.character}</p>}
             <p className="text-xs text-muted-foreground mt-0.5">{quote.mediaTitle}</p>
             {quote.context && <p className="text-[10px] text-muted-foreground/70 mt-0.5 italic">{quote.context}</p>}
           </div>
-          <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border capitalize flex-shrink-0", CATEGORY_COLORS[quote.category])}>
+          <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border capitalize flex-shrink-0", CATEGORY_COLORS[quote.category] ?? CATEGORY_COLORS.other)}>
             {quote.category}
           </span>
         </div>
-
         <div className="flex items-center justify-between pt-1 border-t border-border/50">
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-muted-foreground">{new Date(quote.createdAt).toLocaleDateString()}</span>
@@ -228,26 +204,48 @@ function QuoteCard({ quote, onDelete, colorClass }: { quote: SavedQuote; onDelet
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function QuotesPage() {
-  const [quotes, setQuotes] = useState<SavedQuote[]>(loadQuotes);
   const [addOpen, setAddOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const getHeaders = useApiHeaders();
 
   const { data: libraryData } = useListMedia({ listType: "library" });
   const libraryMedia = Array.isArray(libraryData) ? libraryData : [];
 
-  const handleAdd = (data: Omit<SavedQuote, "id" | "createdAt">) => {
-    const newQuote: SavedQuote = { ...data, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    const updated = [newQuote, ...quotes];
-    setQuotes(updated);
-    saveQuotes(updated);
-  };
+  const { data: quotes = [], isLoading } = useQuery<SavedQuote[]>({
+    queryKey: ["quotes"],
+    queryFn: async () => {
+      const headers = await getHeaders();
+      const res = await fetch(`${API_BASE}/api/quotes`, { headers });
+      if (!res.ok) throw new Error("Failed to fetch quotes");
+      return res.json();
+    },
+  });
 
-  const handleDelete = (id: string) => {
-    const updated = quotes.filter((q) => q.id !== id);
-    setQuotes(updated);
-    saveQuotes(updated);
-  };
+  const addMutation = useMutation({
+    mutationFn: async (data: Omit<SavedQuote, "id" | "createdAt">) => {
+      const headers = await getHeaders();
+      const res = await fetch(`${API_BASE}/api/quotes`, { method: "POST", headers, body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed to save quote");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      toast({ title: "Quote saved!" });
+    },
+    onError: () => toast({ title: "Failed to save quote", variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const headers = await getHeaders();
+      await fetch(`${API_BASE}/api/quotes/${id}`, { method: "DELETE", headers });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["quotes"] }),
+    onError: () => toast({ title: "Failed to delete quote", variant: "destructive" }),
+  });
 
   const filtered = useMemo(() => {
     let items = quotes;
@@ -303,7 +301,11 @@ export default function QuotesPage() {
         </div>
       </div>
 
-      {quotes.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : quotes.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Quote className="w-12 h-12 text-muted-foreground/30 mb-4" />
@@ -320,13 +322,13 @@ export default function QuotesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((quote, idx) => (
-            <QuoteCard key={quote.id} quote={quote} onDelete={() => handleDelete(quote.id)}
+            <QuoteCard key={quote.id} quote={quote} onDelete={() => deleteMutation.mutate(quote.id)}
               colorClass={QUOTE_ACCENT_COLORS[idx % QUOTE_ACCENT_COLORS.length]} />
           ))}
         </div>
       )}
 
-      <AddQuoteDialog open={addOpen} onClose={() => setAddOpen(false)} onAdd={handleAdd} libraryMedia={libraryMedia} />
+      <AddQuoteDialog open={addOpen} onClose={() => setAddOpen(false)} onAdd={(data) => addMutation.mutate(data)} libraryMedia={libraryMedia} />
     </div>
   );
 }
