@@ -158,7 +158,11 @@ router.get("/media/recommendations", async (req, res): Promise<void> => {
         if (!resp.ok) continue;
         const json = await resp.json() as any;
         for (const item of json.data ?? []) {
-          const title = item.attributes?.title?.en ?? Object.values(item.attributes?.title ?? {})[0] ?? "";
+          const rawTitle: string = item.attributes?.title?.en
+            ?? item.attributes?.altTitles?.find((t: any) => t.en)?.en
+            ?? Object.values(item.attributes?.title ?? {})[0]
+            ?? "";
+          const title = rawTitle;
           if (!title || libraryTitles.has((title as string).toLowerCase())) continue;
           const coverRel = item.relationships?.find((r: any) => r.type === "cover_art");
           const coverUrl = coverRel?.attributes?.fileName
@@ -362,6 +366,25 @@ router.post("/media/bulk-auto-genre", async (req, res): Promise<void> => {
   }
 
   res.json({ updated: updatedCount, totalChecked: toUpdate.length });
+});
+
+// GET /media/proxy/image
+router.get("/media/proxy/image", async (req, res) => {
+  const { url } = req.query as { url: string };
+  if (!url) return res.status(400).json({ error: "Missing url" });
+  try {
+    const r = await fetch(decodeURIComponent(url), {
+      headers: { "Referer": "https://mangadex.org" }
+    });
+    if (!r.ok) return res.status(404).send("Not found");
+    const contentType = r.headers.get("content-type") ?? "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    const buffer = await r.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch {
+    res.status(500).json({ error: "Image proxy failed" });
+  }
 });
 
 export default router;
