@@ -16,6 +16,8 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function requireAuth(req: any, res: any): string | null {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return null; }
@@ -92,13 +94,13 @@ router.get("/media/stats", async (req, res): Promise<void> => {
   if (!userId) return;
 
   const all = await db.select().from(mediaTable).where(eq(mediaTable.userId, userId));
-  
+
   const totalByCategory: Record<string, number> = {};
   const completedByCategory: Record<string, number> = {};
-  
+
   all.forEach(m => {
     totalByCategory[m.category] = (totalByCategory[m.category] || 0) + 1;
-    if (m.status === 'completed') {
+    if (m.status === "completed") {
       completedByCategory[m.category] = (completedByCategory[m.category] || 0) + 1;
     }
   });
@@ -106,8 +108,8 @@ router.get("/media/stats", async (req, res): Promise<void> => {
   res.json({
     totalByCategory,
     completedByCategory,
-    toReadCount: all.filter(m => m.listType === 'to_read').length,
-    avoidCount: all.filter(m => m.listType === 'avoid').length
+    toReadCount: all.filter(m => m.listType === "to_read").length,
+    avoidCount: all.filter(m => m.listType === "avoid").length,
   });
 });
 
@@ -130,7 +132,6 @@ router.get("/media/recommendations", async (req, res): Promise<void> => {
 
     for (const cat of categoriesToFetch) {
       if (cat === "anime") {
-        // Jikan top anime
         const resp = await fetch("https://api.jikan.moe/v4/top/anime?limit=20&filter=bypopularity");
         if (!resp.ok) continue;
         const json = await resp.json() as any;
@@ -148,22 +149,44 @@ router.get("/media/recommendations", async (req, res): Promise<void> => {
         }
         await sleep(400);
       } else {
-        // MangaDex — map category to content type
         const typeMap: Record<string, string> = {
-          manga: "manga", manhwa: "manhwa", manhua: "manhua", webtoon: "manhwa",
+          manga: "ja", manhwa: "ko", manhua: "zh", webtoon: "ko",
         };
-        const mdType = typeMap[cat] ?? "manga";
-        const url = `https://api.mangadex.org/manga?limit=20&order[followedCount]=desc&originalLanguage[]=${mdType === "manhwa" ? "ko" : mdType === "manhua" ? "zh" : "ja"}&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art`;
+        const lang = typeMap[cat] ?? "ja";
+        const url = `https://api.mangadex.org/manga?limit=20&order[followedCount]=desc&originalLanguage[]=${lang}&contentRating[]=safe&contentRating[]=suggestive&includes[]=cover_art`;
         const resp = await fetch(url);
         if (!resp.ok) continue;
         const json = await resp.json() as any;
         for (const item of json.data ?? []) {
           const title = item.attributes?.title?.en ?? Object.values(item.attributes?.title ?? {})[0] ?? "";
           if (!title || libraryTitles.has((title as string).toLowerCase())) continue;
-          const coverRel = item.relationships?.find((r: any) =>
+          const coverRel = item.relationships?.find((r: any) => r.type === "cover_art");
+          const coverUrl = coverRel?.attributes?.fileName
+            ? `https://uploads.mangadex.org/covers/${item.id}/${coverRel.attributes.fileName}.256.jpg`
+            : null;
+          const genres = item.attributes?.tags
+            ?.filter((t: any) => t.attributes?.group === "genre")
+            .map((t: any) => t.attributes?.name?.en)
+            .filter(Boolean) ?? [];
+          results.push({
+            title,
+            category: cat,
+            coverUrl,
+            genres,
+            score: null,
+            synopsis: item.attributes?.description?.en ?? null,
+            source: "MangaDex",
+          });
+        }
+      }
+    }
 
-// Helper to delay requests to prevent API rate-limiting
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    res.json(results.slice(0, 60));
+  } catch (err) {
+    logger.warn({ err }, "Recommendations fetch failed");
+    res.json([]);
+  }
+});
 
 // GET /media
 router.get("/media", async (req, res): Promise<void> => {
@@ -216,14 +239,13 @@ router.put("/media/:id", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const mediaId = parseInt(req.params.id); // Ensure ID is parsed
+  const mediaId = parseInt(req.params.id);
   if (isNaN(mediaId)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
   const parsed = UpdateMediaBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const data = parsed.data;
-  // Find your PATCH /media/:id route and update the .set block:
   const [updated] = await db.update(mediaTable)
     .set({
       title: data.title,
@@ -235,7 +257,7 @@ router.put("/media/:id", async (req, res): Promise<void> => {
       readingUrl: data.readingUrl ?? null,
       genres: data.genres ?? undefined,
       reviewText: req.body.reviewText ?? null,
-      rating: req.body.rating ?? null,         
+      rating: req.body.rating ?? null,
     })
     .where(and(eq(mediaTable.id, mediaId), eq(mediaTable.userId, userId)))
     .returning();
@@ -288,7 +310,6 @@ router.get("/media/proxy/mangadex", async (req, res) => {
     const url = `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=5&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&includes[]=cover_art`;
     const r = await fetch(url);
     const data = await r.json() as { data?: Array<{ attributes?: { tags?: any[]; altTitles?: any[] } }> };
-    // Return first result — MangaDex already fuzzy matches
     res.json(data);
   } catch {
     res.status(500).json({ error: "MangaDex fetch failed" });
@@ -324,13 +345,11 @@ router.post("/media/bulk-auto-genre", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  // Get all items that don't have genres set yet
   const library = await db.select().from(mediaTable).where(eq(mediaTable.userId, userId));
   const toUpdate = library.filter((m) => !m.genres || m.genres.length === 0);
 
   let updatedCount = 0;
 
-  // Process sequentially to respect external API rate limits (Jikan allows 3 req/sec)
   for (const item of toUpdate) {
     const fetchedGenres = await fetchGenresForTitle(item.title, item.category);
     if (fetchedGenres.length > 0) {
@@ -339,8 +358,7 @@ router.post("/media/bulk-auto-genre", async (req, res): Promise<void> => {
         .where(eq(mediaTable.id, item.id));
       updatedCount++;
     }
-    // Sleep 600ms between items so we only make ~1.5 requests per second
-    await sleep(600); 
+    await sleep(600);
   }
 
   res.json({ updated: updatedCount, totalChecked: toUpdate.length });
