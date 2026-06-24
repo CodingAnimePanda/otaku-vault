@@ -57,7 +57,7 @@ function RecDetailModal({ rec, open, onClose, onAddLibrary, onAddToRead, addedId
         <DialogHeader>
           <DialogTitle className="font-display text-xl pr-8 leading-tight">{rec.title}</DialogTitle>
         </DialogHeader>
-        <div className="flex gap-4">
+        <div className="flex gap-4 max-h-[60vh] overflow-y-auto pr-1">
           <div className="w-28 flex-shrink-0">
             <div className="aspect-[2/3] rounded-lg overflow-hidden bg-muted">
               {cover
@@ -84,7 +84,7 @@ function RecDetailModal({ rec, open, onClose, onAddLibrary, onAddToRead, addedId
               </div>
             )}
             {rec.synopsis && (
-              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-6">{rec.synopsis}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{rec.synopsis}</p>
             )}
             <div className="flex gap-2 pt-1">
               <Button size="sm" className={cn("flex-1 gap-1 text-xs", addedIds.has(`${rec.title}-library`) ? "bg-green-600" : "")}
