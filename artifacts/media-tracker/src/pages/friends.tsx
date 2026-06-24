@@ -137,7 +137,7 @@ function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLib
           </div>
           <div className="flex-1 min-w-0 space-y-4">
             <div>
-               <p className="text-sm font-medium capitalize text-muted-foreground mb-1">{item.category} • {item.status || "Unknown"}</p>
+               <p className="text-sm font-medium capitalize text-muted-foreground mb-1">{item.category === "normie_tv" ? "TV Show" : item.category === "normie_movie" ? "Movie" : item.category === "normie_book" ? "Book" : item.category} • {item.status || "Unknown"}</p>
                <GenreTags genres={item.genres} />
             </div>
             
@@ -306,7 +306,7 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
               Object.entries(itemsByCategory).map(([category, items]) => (
                 <div key={category} className="space-y-3">
                   <h3 className="font-display text-lg font-bold capitalize flex items-center gap-2 border-b border-border pb-2">
-                    {category}
+                    {category === "normie_tv" ? "TV Shows" : category === "normie_movie" ? "Movies" : category === "normie_book" ? "Books" : category}
                     <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{items.length}</span>
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
