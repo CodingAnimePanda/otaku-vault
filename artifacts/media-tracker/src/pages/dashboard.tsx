@@ -374,8 +374,9 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
   const GENRE_COLORS = ["bg-sky-500/15 text-sky-400","bg-violet-500/15 text-violet-400","bg-rose-500/15 text-rose-400","bg-amber-500/15 text-amber-400","bg-teal-500/15 text-teal-400","bg-fuchsia-500/15 text-fuchsia-400","bg-lime-500/15 text-lime-400","bg-cyan-500/15 text-cyan-400"];
   function gc(g: string) { let h=0; for(let i=0;i<g.length;i++) h=g.charCodeAt(i)+((h<<5)-h); return GENRE_COLORS[Math.abs(h)%GENRE_COLORS.length]; }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative z-10 bg-card border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
         {/* Cover banner */}
         <div className="relative h-32 rounded-t-2xl overflow-hidden bg-muted">
           {item.coverUrl || item.customCoverUrl
@@ -385,8 +386,8 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
           <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="flex gap-4 px-5 -mt-12 mb-4">
-          <div className="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-muted border-2 border-card shadow-lg">
+        <div className="flex gap-4 px-5 -mt-16 mb-4">
+          <div className="relative z-10 w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-muted border-2 border-card shadow-lg">
             {item.coverUrl || item.customCoverUrl
               ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-6 h-6 text-muted-foreground/30" /></div>}
@@ -411,6 +412,47 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
               {item.genres.map((g: string) => <span key={g} className={cn("text-xs px-2 py-0.5 rounded-full font-medium", gc(g))}>{g}</span>)}
             </div>
           )}
+
+          {/* Rating breakdown */}
+          {(() => {
+            const ratingKeys = [
+              { key: "worldBuilding", label: "World-building" },
+              { key: "art", label: "Art" },
+              { key: "character", label: "Character Depth" },
+              { key: "concept", label: "Concept" },
+              { key: "originality", label: "Originality" },
+              { key: "translation", label: "Translation" },
+            ];
+            let savedRatings: Record<string, number> = {};
+            try {
+              const s = localStorage.getItem(`ov_ratings_${item.id}`);
+              if (s) savedRatings = JSON.parse(s);
+            } catch {}
+            const hasAny = ratingKeys.some(r => (savedRatings[r.key] ?? 0) > 0);
+            if (!hasAny) return null;
+            return (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rating Breakdown</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  {ratingKeys.map(({ key, label }) => {
+                    const val = savedRatings[key] ?? 0;
+                    if (val === 0) return null;
+                    return (
+                      <div key={key} className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-muted-foreground">{label}</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${val * 10}%` }} />
+                          </div>
+                          <span className="text-xs font-medium tabular-nums">{val}/10</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Description */}
           {item.description && (
