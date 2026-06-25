@@ -167,6 +167,7 @@ const schema = z.object({
   addedBy: z.string().optional(),
   customCoverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   readingUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  description: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -187,7 +188,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: "", category: "manhwa", listType: defaultListType, status: undefined, notes: "", addedBy: "", customCoverUrl: "", readingUrl: "" },
+    defaultValues: { title: "", category: "manhwa", listType: defaultListType, status: undefined, notes: "", addedBy: "", customCoverUrl: "", readingUrl: "", description: "" },
   });
 
   const watchedTitle = form.watch("title");
@@ -206,7 +207,7 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
 
   useEffect(() => {
     if (open) {
-      form.reset({ title: "", category: "manhwa", listType: defaultListType, status: undefined, notes: "", addedBy: "", customCoverUrl: "", readingUrl: "" });
+      form.reset({ title: "", category: "manhwa", listType: defaultListType, status: undefined, notes: "", addedBy: "", customCoverUrl: "", readingUrl: "", description: "" });
       setSelectedCover(null);
       setCoverSearch(null);
       setGenres([]);
@@ -411,12 +412,27 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
               </div>
             </div>
 
+            <FormField control={form.control} name="description" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description (optional)</FormLabel>
+                <FormControl><Textarea placeholder="Brief synopsis or description..." className="resize-none text-sm" rows={3} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>
                 <FormLabel>Notes (optional)</FormLabel>
                 <FormControl><Textarea placeholder="Any notes about this title..." className="resize-none text-sm" rows={2} {...field} data-testid="textarea-notes" /></FormControl>
                 <FormMessage />
               </FormItem>
+            )} />
+
+            <FormField control={form.control} name="description" render={({ field }) => (
+              <FormItem>
+                 <FormLabel>Description (optional)</FormLabel>
+                 <FormControl><Textarea placeholder="Brief description or synopsis..." className="resize-none text-sm" rows={3} {...field} /></FormControl>
+                 </FormItem>
             )} />
 
             <div className="flex justify-end gap-3 pt-2">

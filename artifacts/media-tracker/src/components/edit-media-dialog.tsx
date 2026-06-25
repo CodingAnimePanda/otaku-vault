@@ -167,6 +167,7 @@ const schema = z.object({
   coverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   readingUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   reviewText: z.string().optional(),
+  description: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -196,7 +197,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: "", category: "manhwa", listType: "library", status: undefined, notes: "", coverUrl: "", readingUrl: "", reviewText: "" },
+    defaultValues: { title: "", category: "manhwa", listType: "library", status: undefined, notes: "", coverUrl: "", readingUrl: "", reviewText: "", description: "" },
   });
 
   useEffect(() => {
@@ -206,6 +207,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         status: (media.status as any) || undefined, notes: media.notes || "",
         coverUrl: media.coverUrl || "", readingUrl: media.readingUrl || "",
         reviewText: (media as any).reviewText || "",
+        description: (media as any).description || "",
       });
       setDropReason(dropReasons?.[media.id] ?? "");
       setRatings(loadRatings(media.id));
@@ -267,6 +269,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         title: values.title, category: values.category, status: (values.status as any) ?? null,
         listType: values.listType, notes: values.notes || null, coverUrl: values.coverUrl || null,
         readingUrl: values.readingUrl || null, reviewText: values.reviewText || null,
+        description: (values as any).description || null,
         rating: parseFloat(calculateAverage()), genres,
       } as any,
     }, {
@@ -425,6 +428,13 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
                 <FormControl><Input placeholder="https://..." {...field} className="text-xs" /></FormControl>
                 <FormMessage />
                 {field.value && <img src={field.value} alt="Cover preview" className="w-12 h-16 object-cover rounded-md mt-1 border border-border" />}
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="description" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl><Textarea placeholder="Brief synopsis or description..." className="resize-none text-sm" rows={3} {...field} /></FormControl>
               </FormItem>
             )} />
 

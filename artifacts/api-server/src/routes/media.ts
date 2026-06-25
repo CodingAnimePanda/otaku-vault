@@ -44,6 +44,7 @@ function serializeMedia(row: typeof mediaTable.$inferSelect) {
     totalChapters: row.totalChapters ?? null,
     addedBy: row.addedBy ?? null,
     readingUrl: row.readingUrl ?? null,
+    description: row.description ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -233,6 +234,7 @@ router.post("/media", async (req, res): Promise<void> => {
     addedBy: data.addedBy ?? null,
     userId: userId,
     readingUrl: data.readingUrl ?? null,
+    description: (data as any).description ?? null,
   }).returning();
 
   res.status(201).json(serializeMedia(row));
@@ -259,6 +261,7 @@ router.put("/media/:id", async (req, res): Promise<void> => {
       notes: data.notes ?? null,
       coverUrl: data.coverUrl ?? null,
       readingUrl: data.readingUrl ?? null,
+      description: (data as any).description ?? null,
       genres: data.genres ?? undefined,
       reviewText: req.body.reviewText ?? null,
       rating: req.body.rating ?? null,

@@ -147,7 +147,7 @@ function GenreTags({ genres }: { genres: string[] }) {
 // ── Card Components ───────────────────────────────────────────────────────────
 function GridCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite, dropReason }: any) {
   return (
-    <div data-testid={`media-card-${item.id}`} className="group relative">
+    <div data-testid={`media-card-${item.id}`} className="group relative cursor-pointer" onClick={() => onDetail?.()}>
       <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
         {item.coverUrl || item.customCoverUrl ? (
           <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title}
@@ -206,7 +206,7 @@ function GridCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite,
 
 function ListCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite, dropReason }: any) {
   return (
-    <div className="group flex gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/20 transition-all items-center">
+    <div className="group flex gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/20 transition-all items-center cursor-pointer" onClick={() => onDetail?.()}>
       <div className="w-12 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
         {item.coverUrl || item.customCoverUrl ? (
           <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
@@ -368,6 +368,91 @@ function MilestonesBanner({ milestones, onClose }: { milestones: typeof MILESTON
   );
 }
 
+// ── Media Detail Modal ────────────────────────────────────────────────────────
+function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () => void; onEdit: () => void }) {
+  const GENRE_COLORS = ["bg-sky-500/15 text-sky-400","bg-violet-500/15 text-violet-400","bg-rose-500/15 text-rose-400","bg-amber-500/15 text-amber-400","bg-teal-500/15 text-teal-400","bg-fuchsia-500/15 text-fuchsia-400","bg-lime-500/15 text-lime-400","bg-cyan-500/15 text-cyan-400"];
+  function gc(g: string) { let h=0; for(let i=0;i<g.length;i++) h=g.charCodeAt(i)+((h<<5)-h); return GENRE_COLORS[Math.abs(h)%GENRE_COLORS.length]; }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        {/* Cover banner */}
+        <div className="relative h-32 rounded-t-2xl overflow-hidden bg-muted">
+          {item.coverUrl || item.customCoverUrl
+            ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover opacity-40" />
+            : <div className="w-full h-full bg-gradient-to-br from-primary/20 to-transparent" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
+          <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="flex gap-4 px-5 -mt-12 mb-4">
+          <div className="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-muted border-2 border-card shadow-lg">
+            {item.coverUrl || item.customCoverUrl
+              ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
+              : <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-6 h-6 text-muted-foreground/30" /></div>}
+          </div>
+          <div className="flex-1 min-w-0 pt-14">
+            <h2 className="font-display font-bold text-lg leading-tight line-clamp-2">{item.title}</h2>
+            <p className={cn("text-xs capitalize font-medium mt-0.5", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>{item.category}</p>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 space-y-4">
+          {/* Status + Tier */}
+          <div className="flex flex-wrap gap-2">
+            {item.status && <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>{STATUS_LABELS[item.status] ?? item.status}</span>}
+            {item.tier && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Tier {item.tier}</span>}
+            {item.rating != null && <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary flex items-center gap-1"><Star className="w-3 h-3 fill-primary" />{item.rating}/10</span>}
+          </div>
+
+          {/* Genres */}
+          {item.genres?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {item.genres.map((g: string) => <span key={g} className={cn("text-xs px-2 py-0.5 rounded-full font-medium", gc(g))}>{g}</span>)}
+            </div>
+          )}
+
+          {/* Description */}
+          {item.description && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</p>
+              <p className="text-sm leading-relaxed text-foreground/90">{item.description}</p>
+            </div>
+          )}
+
+          {/* Review */}
+          {item.reviewText && (
+            <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Review</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{item.reviewText}</p>
+            </div>
+          )}
+
+          {/* Notes */}
+          {item.notes && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notes</p>
+              <p className="text-sm leading-relaxed text-foreground/80">{item.notes}</p>
+            </div>
+          )}
+
+          {/* Reading link */}
+          {item.readingUrl && (
+            <a href={item.readingUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full h-9 rounded-lg bg-muted hover:bg-muted/80 border border-border text-sm font-medium transition-colors">
+              <ExternalLink className="w-4 h-4" /> {getSiteLabel(item.readingUrl)}
+            </a>
+          )}
+
+          {/* Edit button */}
+          <Button className="w-full gap-2" onClick={onEdit}>
+            <Pencil className="w-4 h-4" /> Edit
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [isSyncingGenres, setIsSyncingGenres] = useState(false);
@@ -386,6 +471,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [favorites, setFavorites] = useState<Set<number>>(loadFavorites);
   const [dropReasons, setDropReasons] = useState<Record<number, string>>(loadDropReasons);
+  const [detailItem, setDetailItem] = useState<any | null>(null);
 
   const { data: stats } = useGetMediaStats();
   const { data: media, isLoading: mediaLoading } = useListMedia({ listType: "library" });
@@ -528,6 +614,7 @@ export default function Dashboard() {
               onToggleFavorite={() => handleToggleFavorite(item.id)}
               isFavorite={favorites.has(item.id)}
               dropReason={dropReasons[item.id]}
+              onDetail={() => setDetailItem(item)}
             />
           ))}
         </div>
@@ -541,6 +628,7 @@ export default function Dashboard() {
               onEdit={() => setEditItem(item)}
               onToggleFavorite={() => handleToggleFavorite(item.id)}
               isFavorite={favorites.has(item.id)}
+              onDetail={() => setDetailItem(item)}
             />
           ))}
         </div>
@@ -558,6 +646,7 @@ export default function Dashboard() {
             onToggleFavorite={() => handleToggleFavorite(item.id)}
             isFavorite={favorites.has(item.id)}
             dropReason={dropReasons[item.id]}
+            onDetail={() => setDetailItem(item)}
           />
         ))}
       </div>
@@ -585,6 +674,10 @@ export default function Dashboard() {
       {/* Random pick modal */}
       {randomPick && (
         <RandomPickModal item={randomPick} onClose={() => setRandomPick(null)} onEdit={() => { setEditItem(randomPick); setRandomPick(null); }} />
+      )}
+
+      {detailItem && (
+        <MediaDetailModal item={detailItem} onClose={() => setDetailItem(null)} onEdit={() => { setEditItem(detailItem); setDetailItem(null); }} />
       )}
 
       {/* Header */}
