@@ -375,125 +375,122 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
   function gc(g: string) { let h=0; for(let i=0;i<g.length;i++) h=g.charCodeAt(i)+((h<<5)-h); return GENRE_COLORS[Math.abs(h)%GENRE_COLORS.length]; }
   return (
     <div className="fixed inset-0 z-50" onClick={onClose}>
-  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-  <div className="relative z-10 flex items-center justify-center w-full h-full p-4"/>
-      <div className="relative z-10 bg-card border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-        {/* Cover banner */}
-        <div className="relative h-32 rounded-t-2xl overflow-hidden bg-muted">
-          {item.coverUrl || item.customCoverUrl
-            ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover opacity-40" />
-            : <div className="w-full h-full bg-gradient-to-br from-primary/20 to-transparent" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
-          <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"><X className="w-4 h-4" /></button>
-        </div>
-
-        <div className="flex gap-4 px-5 -mt-10 mb-4">
-          <div className="relative z-10 w-16 h-22 flex-shrink-0 rounded-xl overflow-hidden bg-muted border-2 border-card shadow-lg">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative z-10 flex items-center justify-center w-full h-full p-4">
+        <div className="bg-card border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          {/* Cover banner */}
+          <div className="relative h-32 rounded-t-2xl overflow-hidden bg-muted">
             {item.coverUrl || item.customCoverUrl
-              ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-6 h-6 text-muted-foreground/30" /></div>}
-          </div>
-          <div className="flex-1 min-w-0 pt-8">
-            <h2 className="font-display font-bold text-lg leading-tight line-clamp-2">{item.title}</h2>
-            <p className={cn("text-xs capitalize font-medium mt-0.5", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>{item.category}</p>
-          </div>
-        </div>
-
-        <div className="px-5 pb-5 space-y-4">
-          {/* Status + Tier */}
-          <div className="flex flex-wrap gap-2">
-            {item.status && <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>{STATUS_LABELS[item.status] ?? item.status}</span>}
-            {item.tier && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Tier {item.tier}</span>}
-            {item.rating != null && <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary flex items-center gap-1"><Star className="w-3 h-3 fill-primary" />{item.rating}/10</span>}
+              ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover opacity-40" />
+              : <div className="w-full h-full bg-gradient-to-br from-primary/20 to-transparent" />}
+            <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
+            <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"><X className="w-4 h-4" /></button>
           </div>
 
-          {/* Genres */}
-          {item.genres?.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {item.genres.map((g: string) => <span key={g} className={cn("text-xs px-2 py-0.5 rounded-full font-medium", gc(g))}>{g}</span>)}
+          <div className="flex gap-4 px-5 -mt-10 mb-4">
+            <div className="relative z-10 w-16 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-muted border-2 border-card shadow-lg">
+              {item.coverUrl || item.customCoverUrl
+                ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-6 h-6 text-muted-foreground/30" /></div>}
             </div>
-          )}
+            <div className="flex-1 min-w-0 pt-8">
+              <h2 className="font-display font-bold text-lg leading-tight line-clamp-2">{item.title}</h2>
+              <p className={cn("text-xs capitalize font-medium mt-0.5", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>{item.category}</p>
+            </div>
+          </div>
 
-          {/* Rating breakdown */}
-          {(() => {
-            const ratingKeys = [
-              { key: "story", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
-              { key: "art", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." },
-              { key: "character", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
-              { key: "worldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
-              { key: "uniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
-              { key: "enjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
-            ];
-            let savedRatings: Record<string, number> = {};
-            try {
-              const s = localStorage.getItem(`ov_ratings_${item.id}`);
-              if (s) savedRatings = JSON.parse(s);
-            } catch {}
-            const hasAny = ratingKeys.some(r => (savedRatings[r.key] ?? 0) > 0);
-            if (!hasAny) return null;
-            return (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rating Breakdown</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                  {ratingKeys.map(({ key, label, desc }) => {
-                    const val = savedRatings[key] ?? 0;
-                    if (val === 0) return null;
-                    return (
-                      <div key={key} className="space-y-0.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium">{label}</span>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
-                            <div className="h-full rounded-full bg-primary" style={{ width: `${val * 10}%` }} />
-                          </div>
-                          <span className="text-xs font-medium tabular-nums">{val}/10</span>
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground leading-snug">{desc}</p>
-                    </div>
-                    );
-                  })}
-                </div>
+          <div className="px-5 pb-5 space-y-4">
+            {/* Status + Tier + Rating */}
+            <div className="flex flex-wrap gap-2">
+              {item.status && <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>{STATUS_LABELS[item.status] ?? item.status}</span>}
+              {item.tier && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Tier {item.tier}</span>}
+              {item.rating != null && <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary flex items-center gap-1"><Star className="w-3 h-3 fill-primary" />{item.rating}/10</span>}
+            </div>
+
+            {/* Genres */}
+            {item.genres?.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {item.genres.map((g: string) => <span key={g} className={cn("text-xs px-2 py-0.5 rounded-full font-medium", gc(g))}>{g}</span>)}
               </div>
-            );
-          })()}
+            )}
 
-          {/* Description */}
-          {item.description && (
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</p>
-              <p className="text-sm leading-relaxed text-foreground/90">{item.description}</p>
-            </div>
-          )}
+            {/* Rating breakdown */}
+            {(() => {
+              const ratingKeys = [
+                { key: "story", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
+                { key: "art", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." },
+                { key: "character", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
+                { key: "worldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
+                { key: "uniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
+                { key: "enjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
+              ];
+              let savedRatings: Record<string, number> = {};
+              try { const s = localStorage.getItem(`ov_ratings_${item.id}`); if (s) savedRatings = JSON.parse(s); } catch {}
+              const hasAny = ratingKeys.some(r => (savedRatings[r.key] ?? 0) > 0);
+              if (!hasAny) return null;
+              return (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rating Breakdown</p>
+                  <div className="space-y-3">
+                    {ratingKeys.map(({ key, label, desc }) => {
+                      const val = savedRatings[key] ?? 0;
+                      if (val === 0) return null;
+                      return (
+                        <div key={key} className="space-y-0.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-medium">{label}</span>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full bg-primary" style={{ width: `${val * 10}%` }} />
+                              </div>
+                              <span className="text-xs font-medium tabular-nums w-8 text-right">{val}/10</span>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground leading-snug">{desc}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
-          {/* Review */}
-          {item.reviewText && (
-            <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Review</p>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{item.reviewText}</p>
-            </div>
-          )}
+            {/* Description */}
+            {item.description && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</p>
+                <p className="text-sm leading-relaxed text-foreground/90">{item.description}</p>
+              </div>
+            )}
 
-          {/* Notes */}
-          {item.notes && (
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notes</p>
-              <p className="text-sm leading-relaxed text-foreground/80">{item.notes}</p>
-            </div>
-          )}
+            {/* Review */}
+            {item.reviewText && (
+              <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Review</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{item.reviewText}</p>
+              </div>
+            )}
 
-          {/* Reading link */}
-          {item.readingUrl && (
-            <a href={item.readingUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full h-9 rounded-lg bg-muted hover:bg-muted/80 border border-border text-sm font-medium transition-colors">
-              <ExternalLink className="w-4 h-4" /> {getSiteLabel(item.readingUrl)}
-            </a>
-          )}
+            {/* Notes */}
+            {item.notes && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notes</p>
+                <p className="text-sm leading-relaxed text-foreground/80">{item.notes}</p>
+              </div>
+            )}
 
-          {/* Edit button */}
-          <Button className="w-full gap-2" onClick={onEdit}>
-            <Pencil className="w-4 h-4" /> Edit
-          </Button>
+            {/* Reading link */}
+            {item.readingUrl && (
+              <a href={item.readingUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full h-9 rounded-lg bg-muted hover:bg-muted/80 border border-border text-sm font-medium transition-colors">
+                <ExternalLink className="w-4 h-4" /> {getSiteLabel(item.readingUrl)}
+              </a>
+            )}
+
+            <Button className="w-full gap-2" onClick={onEdit}>
+              <Pencil className="w-4 h-4" /> Edit
+            </Button>
+          </div>
         </div>
       </div>
     </div>
