@@ -290,170 +290,181 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
           <DialogTitle className="font-display text-xl">Edit Media</DialogTitle>
         </DialogHeader>
 
-        {media && onToggleFavorite && (
-          <Button type="button" variant="outline"
-            className={cn("w-full mb-4 gap-2 border", isFavorite ? "border-rose-400/50 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20" : "")}
-            onClick={() => onToggleFavorite(media.id)}>
-            <Heart className={cn("w-4 h-4", isFavorite ? "fill-current" : "")} />
-            {isFavorite ? "Favorited" : "Add to Favorites"}
-          </Button>
-        )}
-
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="title" render={({ field }) => (
-              <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
+  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 
-            <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="category" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>{CATEGORIES.map((cat) => <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="listType" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>List</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>{LIST_TYPES.map((type) => <SelectItem key={type} value={type} className="capitalize">{type.replace("_", " ")}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
-            </div>
+    {/* Cover */}
+    <FormField control={form.control} name="coverUrl" render={({ field }) => (
+      <FormItem>
+        <FormLabel>Cover URL</FormLabel>
+        <FormControl><Input placeholder="https://..." {...field} className="text-xs" /></FormControl>
+        <FormMessage />
+        {field.value && <img src={field.value} alt="Cover preview" className="w-12 h-16 object-cover rounded-md mt-1 border border-border" />}
+      </FormItem>
+    )} />
 
-            <FormField control={form.control} name="status" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || "none"}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="none" className="text-muted-foreground italic">None</SelectItem>
-                    {STATUSES.map((s) => <SelectItem key={s} value={s} className="capitalize">{s.replace("_", " ")}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
+    {/* Title */}
+    <FormField control={form.control} name="title" render={({ field }) => (
+      <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+    )} />
 
-            {watchedStatus === "dropped" && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <label className="text-sm font-medium leading-none text-red-400 flex items-center gap-1.5 mb-1.5">
-                  Drop Reason <span className="text-xs text-muted-foreground font-normal">(optional)</span>
-                </label>
-                <Textarea placeholder="Why did you drop this?" className="resize-none text-sm border-red-500/20 focus-visible:ring-red-500/30" rows={2}
-                  value={dropReason} onChange={(e) => setDropReason(e.target.value)} />
-              </div>
+    {/* Category + List */}
+    <div className="grid grid-cols-2 gap-3">
+      <FormField control={form.control} name="category" render={({ field }) => (
+        <FormItem>
+          <FormLabel>Category</FormLabel>
+          <Select onValueChange={field.onChange} value={field.value}>
+            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+            <SelectContent>{CATEGORIES.map((cat) => <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>)}</SelectContent>
+          </Select>
+          <FormMessage />
+        </FormItem>
+      )} />
+      <FormField control={form.control} name="listType" render={({ field }) => (
+        <FormItem>
+          <FormLabel>List</FormLabel>
+          <Select onValueChange={field.onChange} value={field.value}>
+            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+            <SelectContent>{LIST_TYPES.map((type) => <SelectItem key={type} value={type} className="capitalize">{type.replace("_", " ")}</SelectItem>)}</SelectContent>
+          </Select>
+          <FormMessage />
+        </FormItem>
+      )} />
+    </div>
+
+    {/* Status */}
+    <FormField control={form.control} name="status" render={({ field }) => (
+      <FormItem>
+        <FormLabel>Status</FormLabel>
+        <Select onValueChange={field.onChange} value={field.value || "none"}>
+          <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
+          <SelectContent>
+            <SelectItem value="none" className="text-muted-foreground italic">None</SelectItem>
+            {STATUSES.map((s) => <SelectItem key={s} value={s} className="capitalize">{s.replace("_", " ")}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <FormMessage />
+      </FormItem>
+    )} />
+
+    {/* Drop Reason */}
+    {watchedStatus === "dropped" && (
+      <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+        <label className="text-sm font-medium leading-none text-red-400 flex items-center gap-1.5 mb-1.5">
+          Drop Reason <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+        </label>
+        <Textarea placeholder="Why did you drop this?" className="resize-none text-sm border-red-500/20 focus-visible:ring-red-500/30" rows={2}
+          value={dropReason} onChange={(e) => setDropReason(e.target.value)} />
+      </div>
+    )}
+
+    {/* Genre Tags */}
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium">Genre Tags</label>
+        <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+          onClick={handleFetchGenres} disabled={fetching || !watchedTitle}>
+          {fetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+          Fetch Genres
+        </Button>
+      </div>
+      {candidates && (
+        <MatchPicker candidates={candidates} onPick={handlePickCandidate} onSkip={() => setCandidates(null)} />
+      )}
+      <GenreTagEditor genres={genres} onChange={setGenres} />
+    </div>
+
+    {/* Description */}
+    <FormField control={form.control} name="description" render={({ field }) => (
+      <FormItem>
+        <FormLabel>Description</FormLabel>
+        <FormControl><Textarea placeholder="Brief synopsis or description..." className="resize-none text-sm" rows={3} {...field} /></FormControl>
+      </FormItem>
+    )} />
+
+    {/* Review text */}
+    <FormField control={form.control} name="reviewText" render={({ field }) => (
+      <FormItem>
+        <FormLabel>Your Review</FormLabel>
+        <FormControl><Textarea placeholder="What did you think?" className="resize-none text-sm" rows={3} {...field} /></FormControl>
+      </FormItem>
+    )} />
+
+    {/* Ratings */}
+    <div className="p-4 rounded-xl border border-border bg-card/50 space-y-4 shadow-sm">
+      <div className="flex items-center justify-between pb-2 border-b border-border">
+        <div className="flex items-center gap-2">
+          <Star className="w-4 h-4 text-yellow-500" />
+          <h3 className="font-semibold text-sm">Ratings</h3>
+        </div>
+        <div className="px-2.5 py-1 rounded-md bg-primary/10 text-primary font-bold text-sm">{calculateAverage()} / 10</div>
+      </div>
+      {[
+        { key: "worldBuilding", label: "World-building" },
+        { key: "art", label: "Art" },
+        { key: "character", label: "Character Depth" },
+        { key: "concept", label: "Concept" },
+        { key: "originality", label: "Originality" },
+        { key: "translation", label: "Translation (Optional, affects less)" },
+      ].map((cat) => (
+        <div key={cat.key} className="space-y-1">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-muted-foreground">{cat.label}</span>
+            <span className="font-medium">{(ratings as any)[cat.key] > 0 ? `${(ratings as any)[cat.key]}/10` : "Unrated"}</span>
+          </div>
+          <input type="range" min="0" max="10" step="1" value={(ratings as any)[cat.key]}
+            onChange={(e) => setRatings((prev: any) => ({ ...prev, [cat.key]: parseInt(e.target.value) }))}
+            className="w-full accent-primary h-1 bg-muted rounded-lg appearance-none cursor-pointer" />
+        </div>
+      ))}
+    </div>
+
+    {/* Reading Link */}
+    <FormField control={form.control} name="readingUrl" render={({ field }) => (
+      <FormItem>
+        <FormLabel>Reading Link</FormLabel>
+        <FormControl>
+          <div className="flex gap-2">
+            <Input placeholder="https://..." {...field} className="flex-1 text-xs" />
+            {watchedReadingUrl && (
+              <a href={watchedReadingUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center w-9 flex-shrink-0 bg-muted hover:bg-muted/80 rounded-md border border-border transition-colors">
+                <ExternalLink className="w-4 h-4 text-muted-foreground" />
+              </a>
             )}
+          </div>
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    )} />
 
-            {/* Genre Tags */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Genre Tags</label>
-                <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5"
-                  onClick={handleFetchGenres} disabled={fetching || !watchedTitle}>
-                  {fetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                  Fetch Genres
-                </Button>
-              </div>
-              {candidates && (
-                <MatchPicker candidates={candidates} onPick={handlePickCandidate} onSkip={() => setCandidates(null)} />
-              )}
-              <GenreTagEditor genres={genres} onChange={setGenres} />
-            </div>
+    {/* Notes */}
+    <FormField control={form.control} name="notes" render={({ field }) => (
+      <FormItem>
+        <FormLabel>Notes</FormLabel>
+        <FormControl><Textarea placeholder="Any notes..." className="resize-none text-sm" rows={2} {...field} /></FormControl>
+      </FormItem>
+    )} />
 
-            <FormField control={form.control} name="reviewText" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Your Review</FormLabel>
-                <FormControl><Textarea placeholder="What did you think?" className="resize-none text-sm" rows={3} {...field} /></FormControl>
-              </FormItem>
-            )} />
+    {/* Favorite toggle */}
+    {media && onToggleFavorite && (
+      <Button type="button" variant="outline"
+        className={cn("w-full gap-2 border", isFavorite ? "border-rose-400/50 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20" : "")}
+        onClick={() => onToggleFavorite(media.id)}>
+        <Heart className={cn("w-4 h-4", isFavorite ? "fill-current" : "")} />
+        {isFavorite ? "Favorited" : "Add to Favorites"}
+      </Button>
+    )}
 
-            <FormField control={form.control} name="readingUrl" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Reading Link</FormLabel>
-                <FormControl>
-                  <div className="flex gap-2">
-                    <Input placeholder="https://..." {...field} className="flex-1 text-xs" />
-                    {watchedReadingUrl && (
-                      <a href={watchedReadingUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center justify-center w-9 flex-shrink-0 bg-muted hover:bg-muted/80 rounded-md border border-border transition-colors">
-                        <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                      </a>
-                    )}
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-
-            {/* Ratings */}
-            <div className="p-4 rounded-xl border border-border bg-card/50 space-y-4 shadow-sm">
-              <div className="flex items-center justify-between pb-2 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-yellow-500" />
-                  <h3 className="font-semibold text-sm">Ratings & Review</h3>
-                </div>
-                <div className="px-2.5 py-1 rounded-md bg-primary/10 text-primary font-bold text-sm">{calculateAverage()} / 10</div>
-              </div>
-              {[
-                { key: "worldBuilding", label: "World-building" },
-                { key: "art", label: "Art" },
-                { key: "character", label: "Character Depth" },
-                { key: "concept", label: "Concept" },
-                { key: "originality", label: "Originality" },
-                { key: "translation", label: "Translation (Optional, affects less)" },
-              ].map((cat) => (
-                <div key={cat.key} className="space-y-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">{cat.label}</span>
-                    <span className="font-medium">{(ratings as any)[cat.key] > 0 ? `${(ratings as any)[cat.key]}/10` : "Unrated"}</span>
-                  </div>
-                  <input type="range" min="0" max="10" step="1" value={(ratings as any)[cat.key]}
-                    onChange={(e) => setRatings((prev: any) => ({ ...prev, [cat.key]: parseInt(e.target.value) }))}
-                    className="w-full accent-primary h-1 bg-muted rounded-lg appearance-none cursor-pointer" />
-                </div>
-              ))}
-            </div>
-
-            <FormField control={form.control} name="coverUrl" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cover URL</FormLabel>
-                <FormControl><Input placeholder="https://..." {...field} className="text-xs" /></FormControl>
-                <FormMessage />
-                {field.value && <img src={field.value} alt="Cover preview" className="w-12 h-16 object-cover rounded-md mt-1 border border-border" />}
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl><Textarea placeholder="Brief synopsis or description..." className="resize-none text-sm" rows={3} {...field} /></FormControl>
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="notes" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Notes</FormLabel>
-                <FormControl><Textarea placeholder="Any notes..." className="resize-none text-sm" rows={2} {...field} /></FormControl>
-              </FormItem>
-            )} />
-
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-              <Button type="submit" disabled={updateMedia.isPending}>
-                {updateMedia.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Save Changes
-              </Button>
-            </div>
-          </form>
-        </Form>
+    <div className="flex justify-end gap-3 pt-2">
+      <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+      <Button type="submit" disabled={updateMedia.isPending}>
+        {updateMedia.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+        Save Changes
+      </Button>
+    </div>
+  </form>
+</Form>
       </DialogContent>
     </Dialog>
   );

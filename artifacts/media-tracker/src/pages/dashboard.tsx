@@ -145,9 +145,9 @@ function GenreTags({ genres }: { genres: string[] }) {
 }
 
 // ── Card Components ───────────────────────────────────────────────────────────
-function GridCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite, dropReason }: any) {
+function GridCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite, dropReason, onDetail }: any) {
   return (
-    <div data-testid={`media-card-${item.id}`} className="group relative cursor-pointer" onClick={() => onDetail?.()}>
+    <div data-testid={`media-card-${item.id}`} className="group relative cursor-pointer" onClick={() => onDetail && onDetail()}>
       <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
         {item.coverUrl || item.customCoverUrl ? (
           <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title}
@@ -171,18 +171,19 @@ function GridCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite,
             </a>
           )}
           <div className="flex gap-1 mt-0.5">
-            <button onClick={() => onEdit()} className="flex-1 flex items-center justify-center gap-1 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white text-[10px] transition-colors">
+            <button onClick={(e) => { e.stopPropagation(); onEdit(); }} 
+              className="flex-1 flex items-center justify-center gap-1 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white text-[10px] transition-colors">
               <Pencil className="w-2.5 h-2.5" /> Edit
             </button>
-            <button onClick={() => onToggleFavorite()}
+            <button onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
               className={cn("flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] transition-colors",
                 isFavorite ? "bg-rose-500/40 text-rose-200" : "bg-white/10 hover:bg-rose-500/30 text-white hover:text-rose-200")}>
               <Heart className={cn("w-2.5 h-2.5", isFavorite && "fill-rose-200")} />
             </button>
-            <button onClick={() => onDrop()} className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 text-[10px] transition-colors">
+            <button onClick={(e) => { e.stopPropagation(); onDrop(); }} className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 text-[10px] transition-colors">
               <XCircle className="w-2.5 h-2.5" />
             </button>
-            <button onClick={() => onAvoid()} className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-red-500/20 hover:bg-red-500/40 text-red-300 text-[10px] transition-colors">
+            <button onClick={(e) => { e.stopPropagation(); onAvoid(); }} className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-red-500/20 hover:bg-red-500/40 text-red-300 text-[10px] transition-colors">
               <AlertTriangle className="w-2.5 h-2.5" />
             </button>
           </div>
@@ -204,7 +205,7 @@ function GridCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite,
   );
 }
 
-function ListCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite, dropReason }: any) {
+function ListCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite, dropReason, onDetail }: any) {
   return (
     <div className="group flex gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/20 transition-all items-center cursor-pointer" onClick={() => onDetail?.()}>
       <div className="w-12 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
@@ -231,10 +232,10 @@ function ListCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite,
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         )}
-        <button onClick={() => onToggleFavorite()} className={cn("p-1.5 rounded-md transition-colors", isFavorite ? "text-rose-400" : "text-muted-foreground hover:text-rose-400")}>
+        <button onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }} className={cn("p-1.5 rounded-md transition-colors", isFavorite ? "text-rose-400" : "text-muted-foreground hover:text-rose-400")}>
           <Heart className={cn("w-3.5 h-3.5", isFavorite && "fill-rose-400")} />
         </button>
-        <button onClick={() => onEdit()} className="p-1.5 rounded-md text-muted-foreground hover:text-primary transition-colors">
+        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1.5 rounded-md text-muted-foreground hover:text-primary transition-colors">
           <Pencil className="w-3.5 h-3.5" />
         </button>
       </div>
