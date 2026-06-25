@@ -417,12 +417,12 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
           {/* Rating breakdown */}
           {(() => {
             const ratingKeys = [
-              { key: "worldBuilding", label: "World-building" },
-              { key: "art", label: "Art" },
-              { key: "character", label: "Character Depth" },
-              { key: "concept", label: "Concept" },
-              { key: "originality", label: "Originality" },
-              { key: "translation", label: "Translation" },
+              { key: "story", label: "Story & Pacing" },
+              { key: "art", label: "Art Style & Coloring" },
+              { key: "character", label: "Character Development" },
+              { key: "worldBuilding", label: "World-Building" },
+              { key: "uniqueness", label: "Uniqueness & Execution" },
+              { key: "enjoyment", label: "Enjoyment Factor" },
             ];
             let savedRatings: Record<string, number> = {};
             try {

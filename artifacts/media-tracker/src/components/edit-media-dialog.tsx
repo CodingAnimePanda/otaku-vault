@@ -29,7 +29,7 @@ const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime"] as const;
 
 function loadRatings(mediaId: number) {
   try { const s = localStorage.getItem(`ov_ratings_${mediaId}`); if (s) return JSON.parse(s); } catch {}
-  return { worldBuilding: 0, art: 0, character: 0, concept: 0, originality: 0, translation: 0 };
+  return { story: 0, art: 0, character: 0, worldBuilding: 0, uniqueness: 0, enjoyment: 0 };
 }
 function saveRatings(mediaId: number, ratings: any) {
   try { localStorage.setItem(`ov_ratings_${mediaId}`, JSON.stringify(ratings)); } catch {}
@@ -222,11 +222,8 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
   const watchedCategory = form.watch("category");
 
   const calculateAverage = () => {
-    const active = [ratings.worldBuilding, ratings.art, ratings.character, ratings.concept, ratings.originality].filter(r => r > 0);
-    let total = active.reduce((a, b) => a + b, 0);
-    let count = active.length;
-    if (ratings.translation > 0) { total += ratings.translation * 0.5; count += 0.5; }
-    return count === 0 ? "0.0" : (total / count).toFixed(1);
+    const vals = [ratings.story, ratings.art, ratings.character, ratings.worldBuilding, ratings.uniqueness, ratings.enjoyment].filter(r => r > 0);
+    return vals.length === 0 ? "0.0" : (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
   };
 
   const handleFetchGenres = async () => {
@@ -400,12 +397,12 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         <div className="px-2.5 py-1 rounded-md bg-primary/10 text-primary font-bold text-sm">{calculateAverage()} / 10</div>
       </div>
       {[
-        { key: "worldBuilding", label: "World-building" },
-        { key: "art", label: "Art" },
-        { key: "character", label: "Character Depth" },
-        { key: "concept", label: "Concept" },
-        { key: "originality", label: "Originality" },
-        { key: "translation", label: "Translation (Optional, affects less)" },
+        { key: "story", label: "Story & Pacing" },
+        { key: "art", label: "Art Style & Coloring" },
+        { key: "character", label: "Character Development" },
+        { key: "worldBuilding", label: "World-Building" },
+        { key: "uniqueness", label: "Uniqueness & Execution" },
+        { key: "enjoyment", label: "Enjoyment Factor" },
       ].map((cat) => (
         <div key={cat.key} className="space-y-1">
           <div className="flex justify-between items-center text-xs">
