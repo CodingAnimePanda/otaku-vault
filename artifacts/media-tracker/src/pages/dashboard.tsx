@@ -417,12 +417,12 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
           {/* Rating breakdown */}
           {(() => {
             const ratingKeys = [
-              { key: "story", label: "Story & Pacing" },
-              { key: "art", label: "Art Style & Coloring" },
-              { key: "character", label: "Character Development" },
-              { key: "worldBuilding", label: "World-Building" },
-              { key: "uniqueness", label: "Uniqueness & Execution" },
-              { key: "enjoyment", label: "Enjoyment Factor" },
+              { key: "story", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
+              { key: "art", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." },
+              { key: "character", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
+              { key: "worldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
+              { key: "uniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
+              { key: "enjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
             ];
             let savedRatings: Record<string, number> = {};
             try {
@@ -435,19 +435,22 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rating Breakdown</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                  {ratingKeys.map(({ key, label }) => {
+                  {ratingKeys.map(({ key, label, desc }) => {
                     const val = savedRatings[key] ?? 0;
                     if (val === 0) return null;
                     return (
-                      <div key={key} className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-muted-foreground">{label}</span>
-                        <div className="flex items-center gap-1.5">
+                      <div key={key} className="space-y-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium">{label}</span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
                           <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
                             <div className="h-full rounded-full bg-primary" style={{ width: `${val * 10}%` }} />
                           </div>
                           <span className="text-xs font-medium tabular-nums">{val}/10</span>
                         </div>
                       </div>
+                      <p className="text-[10px] text-muted-foreground leading-snug">{desc}</p>
+                    </div>
                     );
                   })}
                 </div>

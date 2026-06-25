@@ -397,23 +397,26 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         <div className="px-2.5 py-1 rounded-md bg-primary/10 text-primary font-bold text-sm">{calculateAverage()} / 10</div>
       </div>
       {[
-        { key: "story", label: "Story & Pacing" },
-        { key: "art", label: "Art Style & Coloring" },
-        { key: "character", label: "Character Development" },
-        { key: "worldBuilding", label: "World-Building" },
-        { key: "uniqueness", label: "Uniqueness & Execution" },
-        { key: "enjoyment", label: "Enjoyment Factor" },
-      ].map((cat) => (
-        <div key={cat.key} className="space-y-1">
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-muted-foreground">{cat.label}</span>
-            <span className="font-medium">{(ratings as any)[cat.key] > 0 ? `${(ratings as any)[cat.key]}/10` : "Unrated"}</span>
-          </div>
-          <input type="range" min="0" max="10" step="1" value={(ratings as any)[cat.key]}
-            onChange={(e) => setRatings((prev: any) => ({ ...prev, [cat.key]: parseInt(e.target.value) }))}
-            className="w-full accent-primary h-1 bg-muted rounded-lg appearance-none cursor-pointer" />
-        </div>
-      ))}
+  { key: "story", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
+  { key: "art", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." },
+  { key: "character", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
+  { key: "worldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
+  { key: "uniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
+  { key: "enjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
+].map((cat) => (
+  <div key={cat.key} className="space-y-1">
+    <div className="flex justify-between items-start text-xs gap-2">
+      <div>
+        <p className="font-medium text-foreground">{cat.label}</p>
+        <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{cat.desc}</p>
+      </div>
+      <span className="font-medium flex-shrink-0 mt-0.5">{(ratings as any)[cat.key] > 0 ? `${(ratings as any)[cat.key]}/10` : "Unrated"}</span>
+    </div>
+    <input type="range" min="0" max="10" step="1" value={(ratings as any)[cat.key]}
+      onChange={(e) => setRatings((prev: any) => ({ ...prev, [cat.key]: parseInt(e.target.value) }))}
+      className="w-full accent-primary h-1 bg-muted rounded-lg appearance-none cursor-pointer" />
+  </div>
+))}
     </div>
 
     {/* Reading Link */}
