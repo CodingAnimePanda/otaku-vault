@@ -374,8 +374,9 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
   const GENRE_COLORS = ["bg-sky-500/15 text-sky-400","bg-violet-500/15 text-violet-400","bg-rose-500/15 text-rose-400","bg-amber-500/15 text-amber-400","bg-teal-500/15 text-teal-400","bg-fuchsia-500/15 text-fuchsia-400","bg-lime-500/15 text-lime-400","bg-cyan-500/15 text-cyan-400"];
   function gc(g: string) { let h=0; for(let i=0;i<g.length;i++) h=g.charCodeAt(i)+((h<<5)-h); return GENRE_COLORS[Math.abs(h)%GENRE_COLORS.length]; }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+  <div className="relative z-10 flex items-center justify-center w-full h-full p-4"/>
       <div className="relative z-10 bg-card border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
         {/* Cover banner */}
         <div className="relative h-32 rounded-t-2xl overflow-hidden bg-muted">
@@ -386,13 +387,13 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
           <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="flex gap-4 px-5 -mt-16 mb-4">
-          <div className="relative z-10 w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-muted border-2 border-card shadow-lg">
+        <div className="flex gap-4 px-5 -mt-10 mb-4">
+          <div className="relative z-10 w-16 h-22 flex-shrink-0 rounded-xl overflow-hidden bg-muted border-2 border-card shadow-lg">
             {item.coverUrl || item.customCoverUrl
               ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-6 h-6 text-muted-foreground/30" /></div>}
           </div>
-          <div className="flex-1 min-w-0 pt-14">
+          <div className="flex-1 min-w-0 pt-8">
             <h2 className="font-display font-bold text-lg leading-tight line-clamp-2">{item.title}</h2>
             <p className={cn("text-xs capitalize font-medium mt-0.5", CATEGORY_COLORS[item.category]?.split(" ")[0] ?? "text-muted-foreground")}>{item.category}</p>
           </div>
