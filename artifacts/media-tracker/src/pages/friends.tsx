@@ -15,6 +15,7 @@ interface ReceivedRec { id: number; fromUserId: string; toUserId: string; title:
 interface FriendLibraryItem { 
   id: number; title: string; category: string; status: string | null; coverUrl: string | null; customCoverUrl: string | null; 
   tier: string | null; rating: number | null; reviewText: string | null; genres: string[]; currentChapter: string | null; readingUrl: string | null;
+  description?: string | null; notes?: string | null;
   // Detailed Ratings
   story?: number | null; art?: number | null; character?: number | null; worldBuilding?: number | null; uniqueness?: number | null; enjoyment?: number | null;
 }
@@ -38,19 +39,6 @@ function GenreTags({ genres }: { genres: string[] }) {
     <div className="flex flex-wrap gap-1 mt-1.5">
       {genres.slice(0, 3).map((g) => (<span key={g} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">{g}</span>))}
       {genres.length > 3 && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">+{genres.length - 3}</span>}
-    </div>
-  );
-}
-
-function DetailRatingBar({ label, value }: { label: string; value?: number | null }) {
-  if (value == null) return null;
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs font-medium w-24 text-muted-foreground">{label}</span>
-      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-        <div className="h-full bg-primary" style={{ width: `${value * 10}%` }}></div>
-      </div>
-      <span className="text-xs font-bold w-8 text-right">{value}/10</span>
     </div>
   );
 }
@@ -210,6 +198,14 @@ function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLib
               </div>
             )}
 
+            {/* Description */}
+            {item.description && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</p>
+                <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{item.description}</p>
+              </div>
+            )}
+
             {/* Review */}
             {item.reviewText ? (
               <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
@@ -218,6 +214,14 @@ function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLib
               </div>
             ) : (
               <p className="text-sm text-muted-foreground italic">No review written yet.</p>
+            )}
+
+            {/* Notes */}
+            {item.notes && (
+              <div className="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 space-y-1">
+                <p className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 uppercase tracking-wider">Notes</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap text-yellow-700 dark:text-yellow-300">{item.notes}</p>
+              </div>
             )}
 
             {/* Reading link + Send rec */}

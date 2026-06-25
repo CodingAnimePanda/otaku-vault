@@ -248,12 +248,21 @@ router.get("/friends/:friendClerkId/library", async (req, res): Promise<void> =>
       category: row.category,
       status: row.status,
       coverUrl: row.coverUrl ?? null,
+      customCoverUrl: row.customCoverUrl ?? null,
       tier: row.tier ?? null,
       rating: row.rating ?? null,
       reviewText: row.reviewText ?? null,
       genres: row.genres ?? [],
       currentChapter: row.currentChapter ?? null,
       readingUrl: row.readingUrl ?? null,
+      description: row.description ?? null,
+      notes: row.notes ?? null,
+      story: row.story ?? null,
+      art: row.art ?? null,
+      character: row.character ?? null,
+      worldBuilding: row.worldBuilding ?? null,
+      uniqueness: row.uniqueness ?? null,
+      enjoyment: row.enjoyment ?? null,
     });
   }
   res.json({ grouped });
