@@ -16,7 +16,7 @@ interface FriendLibraryItem {
   id: number; title: string; category: string; status: string | null; coverUrl: string | null; customCoverUrl: string | null; 
   tier: string | null; rating: number | null; reviewText: string | null; genres: string[]; currentChapter: string | null; readingUrl: string | null;
   // Detailed Ratings
-  worldBuilding?: number | null; art?: number | null; character?: number | null; concept?: number | null; originality?: number | null; translation?: number | null;
+  story?: number | null; art?: number | null; character?: number | null; worldBuilding?: number | null; uniqueness?: number | null; enjoyment?: number | null;
 }
 type GroupedLibrary = Record<string, FriendLibraryItem[]>;
 type ApiFetch = (path: string, options?: RequestInit) => Promise<any>;
@@ -117,82 +117,124 @@ function SendRecDialog({ open, onClose, friends, preselectedTitle, apiFetch }: {
 // ── Friend Media Details Dialog ───────────────────────────────────────────────
 function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLibraryItem | null, open: boolean, onClose: () => void, onSendRec: (title: string) => void }) {
   if (!item) return null;
-  
-  const hasDetailedRatings = item.worldBuilding != null || item.art != null || item.character != null || item.concept != null || item.originality != null || item.translation != null;
+
+  const RATING_KEYS = [
+    { key: "story", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
+    { key: "art", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." },
+    { key: "character", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
+    { key: "worldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
+    { key: "uniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
+    { key: "enjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
+  ];
+
+  const hasRatings = RATING_KEYS.some(r => (item as any)[r.key] != null && (item as any)[r.key] > 0);
+
+  const STATUS_LABELS: Record<string, string> = {
+    reading: "Reading", watching: "Watching", completed: "Completed",
+    paused: "Paused", dropped: "Dropped", plan_to_read: "Plan to read",
+  };
+  const STATUS_COLORS: Record<string, string> = {
+    reading: "bg-green-500/10 text-green-400", watching: "bg-blue-500/10 text-blue-400",
+    completed: "bg-primary/10 text-primary", paused: "bg-yellow-500/10 text-yellow-400",
+    dropped: "bg-red-500/10 text-red-400", plan_to_read: "bg-muted text-muted-foreground",
+  };
+  const categoryLabel = (cat: string) =>
+    cat === "normie_tv" ? "TV Show" : cat === "normie_movie" ? "Movie" : cat === "normie_book" ? "Book" : cat;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md sm:max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-display text-xl leading-tight pr-4">{item.title}</DialogTitle>
-          <DialogDescription className="sr-only">Details and review for {item.title}</DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col sm:flex-row gap-5 mt-2">
-          <div className="w-32 h-48 flex-shrink-0 rounded-lg overflow-hidden bg-muted border border-border mx-auto sm:mx-0 shadow-md">
-            {item.coverUrl || item.customCoverUrl ? (
-              <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-8 h-8 text-muted-foreground/30" /></div>
-            )}
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative z-10 flex items-center justify-center w-full h-full p-4">
+        <div className="bg-card border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          {/* Banner */}
+          <div className="relative h-32 rounded-t-2xl overflow-hidden bg-muted">
+            {item.coverUrl || item.customCoverUrl
+              ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover opacity-40" />
+              : <div className="w-full h-full bg-gradient-to-br from-primary/20 to-transparent" />}
+            <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
+            <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"><X className="w-4 h-4" /></button>
           </div>
-          <div className="flex-1 min-w-0 space-y-4">
-            <div>
-               <p className="text-sm font-medium capitalize text-muted-foreground mb-1">{item.category === "normie_tv" ? "TV Show" : item.category === "normie_movie" ? "Movie" : item.category === "normie_book" ? "Book" : item.category} • {item.status || "Unknown"}</p>
-               <GenreTags genres={item.genres} />
+
+          {/* Cover + Title */}
+          <div className="flex gap-4 px-5 -mt-10 mb-4">
+            <div className="relative z-10 w-16 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-muted border-2 border-card shadow-lg">
+              {item.coverUrl || item.customCoverUrl
+                ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-6 h-6 text-muted-foreground/30" /></div>}
             </div>
-            
-            {(item.tier || item.rating != null) && (
-              <div className="flex items-center gap-3 flex-wrap">
-                {item.tier && (
-                  <div className="flex items-center gap-1.5 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2.5 py-1.5 rounded-md border border-yellow-500/20">
-                    <Trophy className="w-4 h-4" />
-                    <span className="font-black text-sm">{item.tier} Tier</span>
-                  </div>
-                )}
-                {item.rating != null && (
-                  <div className="flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1.5 rounded-md border border-primary/20">
-                    <Star className="w-4 h-4 fill-primary" />
-                    <span className="font-bold text-sm">{item.rating} / 10 Overall</span>
-                  </div>
-                )}
+            <div className="flex-1 min-w-0 pt-8">
+              <h2 className="font-display font-bold text-lg leading-tight line-clamp-2">{item.title}</h2>
+              <p className="text-xs capitalize font-medium mt-0.5 text-muted-foreground">{categoryLabel(item.category)}</p>
+            </div>
+          </div>
+
+          <div className="px-5 pb-5 space-y-4">
+            {/* Status + Tier + Rating badges */}
+            <div className="flex flex-wrap gap-2">
+              {item.status && <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>{STATUS_LABELS[item.status] ?? item.status}</span>}
+              {item.tier && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Tier {item.tier}</span>}
+              {item.rating != null && <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary flex items-center gap-1"><Star className="w-3 h-3 fill-primary" />{item.rating}/10</span>}
+            </div>
+
+            {/* Genres */}
+            {item.genres?.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {item.genres.map((g) => <span key={g} className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary/10 text-primary">{g}</span>)}
               </div>
             )}
 
-            {/* Detailed Sliders */}
-            {hasDetailedRatings && (
-              <div className="p-4 rounded-lg bg-card border border-border space-y-2.5 shadow-sm">
-                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Rating Breakdown</h4>
-                <DetailRatingBar label="World-building" value={item.worldBuilding} />
-                <DetailRatingBar label="Art/Animation" value={item.art} />
-                <DetailRatingBar label="Characters" value={item.character} />
-                <DetailRatingBar label="Concept" value={item.concept} />
-                <DetailRatingBar label="Originality" value={item.originality} />
-                <DetailRatingBar label="Translation" value={item.translation} />
+            {/* Rating breakdown */}
+            {hasRatings && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rating Breakdown</p>
+                <div className="space-y-3">
+                  {RATING_KEYS.map(({ key, label, desc }) => {
+                    const val = (item as any)[key];
+                    if (!val) return null;
+                    return (
+                      <div key={key} className="space-y-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-medium">{label}</span>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div className="h-full rounded-full bg-primary" style={{ width: `${val * 10}%` }} />
+                            </div>
+                            <span className="text-xs font-medium tabular-nums w-8 text-right">{val}/10</span>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground leading-snug">{desc}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
+            {/* Review */}
             {item.reviewText ? (
-              <div className="p-4 rounded-lg bg-muted/50 border border-border">
-                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Review</h4>
+              <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Review</p>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{item.reviewText}</p>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground italic">No review text provided.</p>
+              <p className="text-sm text-muted-foreground italic">No review written yet.</p>
             )}
+
+            {/* Reading link + Send rec */}
+            <div className="flex gap-2 pt-2 border-t border-border">
+              {item.readingUrl && (
+                <a href={item.readingUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                  <Button variant="outline" className="w-full gap-2"><BookOpen className="w-4 h-4" /> Read</Button>
+                </a>
+              )}
+              <Button className="flex-1 gap-2" onClick={() => { onClose(); onSendRec(item.title); }}>
+                <Send className="w-4 h-4" /> Rec Back
+              </Button>
+            </div>
           </div>
         </div>
-        <div className="flex gap-2 mt-4 pt-4 border-t border-border">
-          {item.readingUrl && (
-            <a href={item.readingUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-              <Button variant="outline" className="w-full gap-2"><BookOpen className="w-4 h-4" /> Open Source Link</Button>
-            </a>
-          )}
-          <Button className="flex-1 gap-2" onClick={() => { onClose(); onSendRec(item.title); }}>
-            <Send className="w-4 h-4" /> Send Recommendation Back
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
 
