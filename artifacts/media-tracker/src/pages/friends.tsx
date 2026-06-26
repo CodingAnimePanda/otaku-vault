@@ -6,12 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Users, UserPlus, BookOpen, Send, Check, X, Search, Heart, Inbox, Star, ToggleLeft, ToggleRight, ArrowLeft, Trophy, LayoutGrid } from "lucide-react";
 import { cn, proxyImage } from "@/lib/utils";
+import { QuickRecDialog } from "@/components/quick-rec-dialog";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface UserProfile { id: number; clerkId: string; username: string; displayName: string | null; avatarUrl: string | null; }
 interface FriendEntry { friendshipId: number; friendId: string; friend: UserProfile | null; }
 interface FriendRequest { id: number; senderId: string; receiverId: string; status: string; createdAt: string; sender: UserProfile | null; }
-interface ReceivedRec { id: number; fromUserId: string; toUserId: string; title: string; category: string | null; coverUrl: string | null; readingUrl: string | null; message: string | null; isRead: boolean; createdAt: string; from: { username: string; displayName: string | null } | null; }
+interface ReceivedRec {
+  id: number; fromUserId: string; toUserId: string; title: string;
+  category: string | null; coverUrl: string | null; readingUrl: string | null;
+  message: string | null; isRead: boolean; createdAt: string;
+  from: { username: string; displayName: string | null } | null;
+  rating?: number | null; reviewText?: string | null; genres?: string[];
+  ratingStory?: number | null; ratingArt?: number | null; ratingCharacter?: number | null;
+  ratingWorldBuilding?: number | null; ratingUniqueness?: number | null; ratingEnjoyment?: number | null;
+}
 interface FriendLibraryItem { 
   id: number; title: string; category: string; status: string | null; coverUrl: string | null; customCoverUrl: string | null; 
   tier: string | null; rating: number | null; reviewText: string | null; genres: string[]; currentChapter: string | null; readingUrl: string | null;
@@ -102,7 +111,152 @@ function SendRecDialog({ open, onClose, friends, preselectedTitle, apiFetch }: {
   );
 }
 
+function QuickRecDialog({ open, onClose, item, friends, apiFetch }: {
+  open: boolean; onClose: () => void;
+  item: { title: string; category: string; coverUrl?: string | null; readingUrl?: string | null;
+           rating?: number | null; reviewText?: string | null; genres?: string[];
+           ratingStory?: number | null; ratingArt?: number | null; ratingCharacter?: number | null;
+           ratingWorldBuilding?: number | null; ratingUniqueness?: number | null; ratingEnjoyment?: number | null; } | null;
+  friends: FriendEntry[]; apiFetch: ApiFetch;
+}) {
+  const [toUsername, setToUsername] = useState("");
+  const [customUsername, setCustomUsername] = useState("");
+  const [useCustom, setUseCustom] = useState(false);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => { if (open) { setToUsername(""); setCustomUsername(""); setMessage(""); setUseCustom(false); } }, [open]);
+
+  if (!item) return null;
+
+  const handleSend = async () => {
+    const target = useCustom ? customUsername.trim() : toUsername;
+    if (!target) return;
+    setLoading(true);
+    try {
+      await apiFetch("/api/friends/recommendations", {
+        method: "POST",
+        body: JSON.stringify({
+          toUsername: target, title: item.title, category: item.category,
+          coverUrl: item.coverUrl ?? null, readingUrl: item.readingUrl ?? null,
+          message: message.trim() || null,
+          rating: item.rating ?? null, reviewText: item.reviewText ?? null,
+          genres: item.genres ?? [],
+          ratingStory: item.ratingStory ?? null, ratingArt: item.ratingArt ?? null,
+          ratingCharacter: item.ratingCharacter ?? null, ratingWorldBuilding: item.ratingWorldBuilding ?? null,
+          ratingUniqueness: item.ratingUniqueness ?? null, ratingEnjoyment: item.ratingEnjoyment ?? null,
+        }),
+      });
+      toast({ title: "Rec sent! 🎉" }); onClose();
+    } catch (e: any) { toast({ title: "Failed", description: e.message, variant: "destructive" }); }
+    finally { setLoading(false); }
+  };
+
+  const RATING_KEYS = [
+    { key: "ratingStory", label: "Story & Pacing" }, { key: "ratingArt", label: "Art Style" },
+    { key: "ratingCharacter", label: "Characters" }, { key: "ratingWorldBuilding", label: "World-Building" },
+    { key: "ratingUniqueness", label: "Uniqueness" }, { key: "ratingEnjoyment", label: "Enjoyment" },
+  ];
+  const hasRatings = RATING_KEYS.some(r => (item as any)[r.key] > 0);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl flex items-center gap-2">
+            <Send className="w-5 h-5 text-primary" /> Recommend to a Friend
+          </DialogTitle>
+          <DialogDescription className="sr-only">Send a recommendation.</DialogDescription>
+        </DialogHeader>
+
+        {/* Preview card */}
+        <div className="flex gap-3 p-3 rounded-xl bg-muted/50 border border-border">
+          {item.coverUrl
+            ? <img src={proxyImage(item.coverUrl)} alt={item.title} className="w-12 h-16 object-cover rounded-lg flex-shrink-0" />
+            : <div className="w-12 h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0"><BookOpen className="w-4 h-4 text-muted-foreground/40" /></div>}
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm leading-tight">{item.title}</p>
+            <p className="text-xs text-muted-foreground capitalize mt-0.5">{item.category}</p>
+            {item.rating != null && (
+              <p className="text-xs text-primary font-medium mt-1 flex items-center gap-1">
+                <Star className="w-3 h-3 fill-primary" /> {item.rating}/10
+              </p>
+            )}
+            {item.genres?.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {item.genres.slice(0, 3).map(g => <span key={g} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{g}</span>)}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Rating breakdown preview */}
+        {hasRatings && (
+          <div className="space-y-1.5 p-3 rounded-xl bg-muted/30 border border-border">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Your Ratings (will be shared)</p>
+            {RATING_KEYS.map(({ key, label }) => {
+              const val = (item as any)[key];
+              if (!val) return null;
+              return (
+                <div key={key} className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground w-24 flex-shrink-0">{label}</span>
+                  <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${val * 10}%` }} />
+                  </div>
+                  <span className="text-[10px] tabular-nums w-6 text-right">{val}/10</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Review preview */}
+        {item.reviewText && (
+          <div className="p-3 rounded-xl bg-muted/30 border border-border">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Your Review (will be shared)</p>
+            <p className="text-xs text-foreground/80 line-clamp-3 italic">"{item.reviewText}"</p>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {/* Friend picker */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Send to</label>
+            {!useCustom ? (
+              <select className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm" value={toUsername} onChange={(e) => setToUsername(e.target.value)}>
+                <option value="">Select a friend...</option>
+                {friends.map((f) => f.friend && <option key={f.friendshipId} value={f.friend.username}>{f.friend.displayName ? `${f.friend.displayName} (@${f.friend.username})` : `@${f.friend.username}`}</option>)}
+              </select>
+            ) : (
+              <Input placeholder="Type username..." value={customUsername} onChange={(e) => setCustomUsername(e.target.value)} />
+            )}
+            <button onClick={() => setUseCustom(v => !v)} className="text-[10px] text-primary mt-1 hover:underline">
+              {useCustom ? "← Pick from friends list" : "Type a username instead →"}
+            </button>
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Why they should read it <span className="text-muted-foreground/60">(optional)</span></label>
+            <textarea
+              className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+              rows={3} placeholder="You'd love this because..."
+              value={message} onChange={(e) => setMessage(e.target.value)}
+            />
+          </div>
+
+          <Button className="w-full gap-2" onClick={handleSend} disabled={loading || (!toUsername && !customUsername.trim())}>
+            <Send className="w-4 h-4" /> {loading ? "Sending..." : "Send Rec"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Friend Media Details Dialog ───────────────────────────────────────────────
+
 function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLibraryItem | null, open: boolean, onClose: () => void, onSendRec: (title: string) => void }) {
   if (!item) return null;
 
@@ -249,6 +403,7 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
   const [notShared, setNotShared] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<FriendLibraryItem | null>(null);
+  const [recItem, setRecItem] = useState<FriendLibraryItem | null>(null);
 
   useEffect(() => {
     apiFetch(`/api/friends/${friend.friendId}/library`)
@@ -365,7 +520,7 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
                             <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/30 text-xs p-4 text-center gap-2"><BookOpen className="w-5 h-5 text-muted-foreground/50" /><span className="text-muted-foreground">{item.title}</span></div>
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 gap-1.5">
-                            <Button size="sm" onClick={(e) => { e.stopPropagation(); onSendRec(item.title); }} className="w-full gap-2 h-8 text-xs bg-primary/90 hover:bg-primary"><Send className="w-3.5 h-3.5"/> Rec Back</Button>
+                            <Button size="sm" onClick={(e) => { e.stopPropagation(); setRecItem(item); }} className="w-full gap-2 h-8 text-xs bg-primary/90 hover:bg-primary"><Send className="w-3.5 h-3.5"/> Rec Back</Button>
                           </div>
                           {item.tier && <div className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center"><span className="text-xs font-display font-black text-yellow-400">{item.tier}</span></div>}
                         </div>
@@ -390,7 +545,7 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
         item={selectedItem} 
         open={!!selectedItem} 
         onClose={() => setSelectedItem(null)} 
-        onSendRec={(title) => { setSelectedItem(null); onSendRec(title); }} 
+        onSendRec={(title) => { setRecItem(selectedItem); setSelectedItem(null); }} 
       />
     </div>
   );
@@ -398,6 +553,76 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
 
 // ── Main Friends Page ─────────────────────────────────────────────────────────
 type Tab = "friends" | "requests" | "recs";
+
+function RecInboxCard({ rec, onMarkRead }: { rec: ReceivedRec; onMarkRead: (id: number) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const RATING_KEYS = [
+    { key: "ratingStory", label: "Story & Pacing" }, { key: "ratingArt", label: "Art Style" },
+    { key: "ratingCharacter", label: "Characters" }, { key: "ratingWorldBuilding", label: "World-Building" },
+    { key: "ratingUniqueness", label: "Uniqueness" }, { key: "ratingEnjoyment", label: "Enjoyment" },
+  ];
+  const hasRatings = RATING_KEYS.some(r => (rec as any)[r.key] > 0);
+
+  return (
+    <div className={cn("rounded-xl border transition-colors overflow-hidden", rec.isRead ? "bg-card border-border" : "bg-primary/5 border-primary/30")}>
+      {/* Collapsed view */}
+      <div className="flex gap-3 p-4 cursor-pointer" onClick={() => { setExpanded(v => !v); if (!rec.isRead) onMarkRead(rec.id); }}>
+        {rec.coverUrl
+          ? <img src={rec.coverUrl} alt={rec.title} className="w-12 h-16 object-cover rounded-lg flex-shrink-0" />
+          : <div className="w-12 h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0"><Heart className="w-5 h-5 text-muted-foreground" /></div>}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-semibold text-sm">{rec.title}</p>
+              {rec.category && <p className="text-xs text-muted-foreground capitalize">{rec.category}</p>}
+            </div>
+            {!rec.isRead && <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0">New</span>}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">from <span className="text-foreground font-medium">@{rec.from?.username}</span></p>
+          {rec.message && <p className="text-xs text-muted-foreground mt-1 italic">"{rec.message}"</p>}
+          <div className="flex items-center gap-3 mt-2">
+            {rec.rating != null && <span className="text-xs font-medium text-primary flex items-center gap-1"><Star className="w-3 h-3 fill-primary" />{rec.rating}/10</span>}
+            {rec.genres?.length > 0 && <div className="flex gap-1">{rec.genres.slice(0, 2).map(g => <span key={g} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{g}</span>)}</div>}
+            <span className="text-[10px] text-muted-foreground ml-auto">{expanded ? "▲ Less" : "▼ More"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded view */}
+      {expanded && (
+        <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+          {hasRatings && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Their Ratings</p>
+              {RATING_KEYS.map(({ key, label }) => {
+                const val = (rec as any)[key];
+                if (!val) return null;
+                return (
+                  <div key={key} className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground w-24 flex-shrink-0">{label}</span>
+                    <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${val * 10}%` }} />
+                    </div>
+                    <span className="text-[10px] tabular-nums w-6 text-right">{val}/10</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {rec.reviewText && (
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Their Review</p>
+              <p className="text-xs leading-relaxed italic text-foreground/80">"{rec.reviewText}"</p>
+            </div>
+          )}
+          <div className="flex gap-2 pt-1">
+            {rec.readingUrl && <a href={rec.readingUrl} target="_blank" rel="noopener noreferrer"><Button size="sm" variant="outline" className="h-7 text-xs gap-1"><BookOpen className="w-3 h-3" /> Read</Button></a>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function FriendsPage() {
   const { user } = useUser(); const { getToken } = useAuth(); const { toast } = useToast();
@@ -414,6 +639,7 @@ export default function FriendsPage() {
   const [addUsername, setAddUsername] = useState(""); const [addLoading, setAddLoading] = useState(false);
   const [viewingFriend, setViewingFriend] = useState<FriendEntry | null>(null);
   const [sendRecOpen, setSendRecOpen] = useState(false); const [sendRecTitle, setSendRecTitle] = useState("");
+  const [quickRecItem, setQuickRecItem] = useState<any | null>(null);
   const [shareMap, setShareMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -528,20 +754,9 @@ export default function FriendsPage() {
 
       {tab === "recs" && (
         <div className="space-y-3">
-          {recs.length === 0 ? <div className="text-center py-16 text-muted-foreground"><Inbox className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="font-medium">No recommendations yet</p></div> : recs.map((rec) => (
-            <div key={rec.id} className={cn("flex gap-3 p-4 rounded-xl border transition-colors", rec.isRead ? "bg-card border-border" : "bg-primary/5 border-primary/30")}>
-              {rec.coverUrl ? <img src={rec.coverUrl} alt={rec.title} className="w-12 h-16 object-cover rounded flex-shrink-0" /> : <div className="w-12 h-16 bg-muted rounded flex items-center justify-center flex-shrink-0"><Heart className="w-5 h-5 text-muted-foreground" /></div>}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2"><div><p className="font-semibold text-sm">{rec.title}</p>{rec.category && <p className="text-xs text-muted-foreground capitalize">{rec.category}</p>}</div>{!rec.isRead && <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0">New</span>}</div>
-                <p className="text-xs text-muted-foreground mt-1">from <span className="text-foreground font-medium">@{rec.from?.username}</span></p>
-                {rec.message && <p className="text-xs text-muted-foreground mt-1 italic">"{rec.message}"</p>}
-                <div className="flex gap-2 mt-2">
-                  {rec.readingUrl && <a href={rec.readingUrl} target="_blank" rel="noopener noreferrer"><Button size="sm" variant="outline" className="h-7 text-xs gap-1"><BookOpen className="w-3 h-3" /> Read</Button></a>}
-                  {!rec.isRead && <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => handleMarkRecRead(rec.id)}>Mark as read</Button>}
-                </div>
-              </div>
-            </div>
-          ))}
+          {recs.length === 0
+            ? <div className="text-center py-16 text-muted-foreground"><Inbox className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="font-medium">No recommendations yet</p></div>
+            : recs.map((rec) => <RecInboxCard key={rec.id} rec={rec} onMarkRead={handleMarkRecRead} />)}
         </div>
       )}
 

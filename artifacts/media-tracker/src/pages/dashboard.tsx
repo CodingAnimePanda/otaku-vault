@@ -24,6 +24,7 @@ import { EditMediaDialog } from "@/components/edit-media-dialog";
 import { cn, proxyImage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
+import { QuickRecDialog } from "@/components/quick-rec-dialog";
 
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -145,7 +146,7 @@ function GenreTags({ genres }: { genres: string[] }) {
 }
 
 // ── Card Components ───────────────────────────────────────────────────────────
-function GridCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite, dropReason, onDetail }: any) {
+function GridCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite, dropReason, onDetail, onRec }: any) {
   return (
     <div data-testid={`media-card-${item.id}`} className="group relative cursor-pointer" onClick={() => onDetail && onDetail()}>
       <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
@@ -186,6 +187,11 @@ function GridCard({ item, onEdit, onDrop, onAvoid, onToggleFavorite, isFavorite,
             <button onClick={(e) => { e.stopPropagation(); onAvoid(); }} className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-red-500/20 hover:bg-red-500/40 text-red-300 text-[10px] transition-colors">
               <AlertTriangle className="w-2.5 h-2.5" />
             </button>
+            {onRec && (
+              <button onClick={(e) => { e.stopPropagation(); onRec(); }} className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-primary/20 hover:bg-primary/40 text-primary text-[10px] transition-colors">
+                <Send className="w-2.5 h-2.5" />
+              </button>
+            )}
           </div>
         </div>
         {item.tier && (
@@ -370,7 +376,7 @@ function MilestonesBanner({ milestones, onClose }: { milestones: typeof MILESTON
 }
 
 // ── Media Detail Modal ────────────────────────────────────────────────────────
-function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () => void; onEdit: () => void }) {
+function MediaDetailModal({ item, onClose, onEdit, onRec }: { item: any; onClose: () => void; onEdit: () => void; onRec?: () => void }) {
   const GENRE_COLORS = ["bg-sky-500/15 text-sky-400","bg-violet-500/15 text-violet-400","bg-rose-500/15 text-rose-400","bg-amber-500/15 text-amber-400","bg-teal-500/15 text-teal-400","bg-fuchsia-500/15 text-fuchsia-400","bg-lime-500/15 text-lime-400","bg-cyan-500/15 text-cyan-400"];
   function gc(g: string) { let h=0; for(let i=0;i<g.length;i++) h=g.charCodeAt(i)+((h<<5)-h); return GENRE_COLORS[Math.abs(h)%GENRE_COLORS.length]; }
   return (
@@ -499,9 +505,10 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
               </a>
             )}
 
-            <Button className="w-full gap-2" onClick={onEdit}>
-              <Pencil className="w-4 h-4" /> Edit
-            </Button>
+            <div className="flex gap-2">
+              {onRec && <Button variant="outline" className="flex-1 gap-2" onClick={onRec}><Send className="w-4 h-4" /> Rec to Friend</Button>}
+              <Button className="flex-1 gap-2" onClick={onEdit}><Pencil className="w-4 h-4" /> Edit</Button>
+            </div>
           </div>
         </div>
       </div>
@@ -528,6 +535,7 @@ export default function Dashboard() {
   const [favorites, setFavorites] = useState<Set<number>>(loadFavorites);
   const [dropReasons, setDropReasons] = useState<Record<number, string>>(loadDropReasons);
   const [detailItem, setDetailItem] = useState<any | null>(null);
+  const [quickRecItem, setQuickRecItem] = useState<any | null>(null);
 
   const { data: stats } = useGetMediaStats();
   const { data: media, isLoading: mediaLoading } = useListMedia({ listType: "library" });
@@ -703,6 +711,7 @@ export default function Dashboard() {
             isFavorite={favorites.has(item.id)}
             dropReason={dropReasons[item.id]}
             onDetail={() => setDetailItem(item)}
+            onRec={() => setQuickRecItem(item)}
           />
         ))}
       </div>
@@ -733,7 +742,10 @@ export default function Dashboard() {
       )}
 
       {detailItem && (
-        <MediaDetailModal item={detailItem} onClose={() => setDetailItem(null)} onEdit={() => { setEditItem(detailItem); setDetailItem(null); }} />
+        <MediaDetailModal item={detailItem} onClose={() => setDetailItem(null)}
+          onEdit={() => { setEditItem(detailItem); setDetailItem(null); }}
+          onRec={() => { setQuickRecItem(detailItem); setDetailItem(null); }}
+        />
       )}
 
       {/* Header */}
@@ -1024,6 +1036,7 @@ export default function Dashboard() {
           });
         }}
       />
+      <QuickRecDialog open={!!quickRecItem} onClose={() => setQuickRecItem(null)} item={quickRecItem} />
     </div>
   );
 }

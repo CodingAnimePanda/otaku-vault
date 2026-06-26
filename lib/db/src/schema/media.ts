@@ -106,6 +106,15 @@ export const recommendationsTable = pgTable("recommendations", {
   coverUrl: text("cover_url"),
   readingUrl: text("reading_url"),
   message: text("message"),                    // optional personal note
+  rating: real("rating"),
+  ratingStory: real("rating_story"),
+  ratingArt: real("rating_art"),
+  ratingCharacter: real("rating_character"),
+  ratingWorldBuilding: real("rating_world_building"),
+  ratingUniqueness: real("rating_uniqueness"),
+  ratingEnjoyment: real("rating_enjoyment"),
+  reviewText: text("review_text"),
+  genres: text("genres").array().notNull().default([]),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

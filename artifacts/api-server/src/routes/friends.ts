@@ -274,25 +274,34 @@ router.post("/friends/recommendations", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const { toUsername, title, category, coverUrl, readingUrl, message } = req.body;
+  const { toUsername, title, category, coverUrl, readingUrl, message,
+          rating, ratingStory, ratingArt, ratingCharacter, ratingWorldBuilding,
+          ratingUniqueness, ratingEnjoyment, reviewText, genres } = req.body;
   if (!toUsername || !title) { res.status(400).json({ error: "toUsername and title are required" }); return; }
 
   const [target] = await db.select().from(usersTable).where(eq(usersTable.username, toUsername));
   if (!target) { res.status(404).json({ error: "User not found" }); return; }
 
   const [friendship] = await db.select().from(friendshipsTable).where(
-    and(
-      eq(friendshipsTable.status, "accepted"),
-      or(
-        and(eq(friendshipsTable.senderId, userId), eq(friendshipsTable.receiverId, target.clerkId)),
-        and(eq(friendshipsTable.senderId, target.clerkId), eq(friendshipsTable.receiverId, userId))
-      )
-    )
+    and(eq(friendshipsTable.status, "accepted"), or(
+      and(eq(friendshipsTable.senderId, userId), eq(friendshipsTable.receiverId, target.clerkId)),
+      and(eq(friendshipsTable.senderId, target.clerkId), eq(friendshipsTable.receiverId, userId))
+    ))
   );
   if (!friendship) { res.status(403).json({ error: "You can only send recs to friends" }); return; }
 
   const [created] = await db.insert(recommendationsTable)
-    .values({ fromUserId: userId, toUserId: target.clerkId, title, category: category ?? null, coverUrl: coverUrl ?? null, readingUrl: readingUrl ?? null, message: message ?? null, isRead: false })
+    .values({
+      fromUserId: userId, toUserId: target.clerkId, title,
+      category: category ?? null, coverUrl: coverUrl ?? null,
+      readingUrl: readingUrl ?? null, message: message ?? null, isRead: false,
+      rating: rating ?? null,
+      ratingStory: ratingStory ?? null, ratingArt: ratingArt ?? null,
+      ratingCharacter: ratingCharacter ?? null, ratingWorldBuilding: ratingWorldBuilding ?? null,
+      ratingUniqueness: ratingUniqueness ?? null, ratingEnjoyment: ratingEnjoyment ?? null,
+      reviewText: reviewText ?? null,
+      genres: genres ?? [],
+    })
     .returning();
   res.status(201).json(created);
 });
