@@ -151,7 +151,7 @@ function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLib
                 : <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-6 h-6 text-muted-foreground/30" /></div>}
             </div>
             <div className="flex-1 min-w-0 pt-8">
-              <h2 className="font-display font-bold text-lg leading-tight break-words">{item.title}</h2>
+              <h2 className="font-display font-bold text-lg leading-tight break-words min-w-0">{item.title}</h2>
               <p className="text-xs capitalize font-medium mt-0.5 text-muted-foreground">{categoryLabel(item.category)}</p>
             </div>
           </div>
