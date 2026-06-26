@@ -17,7 +17,7 @@ interface FriendLibraryItem {
   tier: string | null; rating: number | null; reviewText: string | null; genres: string[]; currentChapter: string | null; readingUrl: string | null;
   description?: string | null; notes?: string | null;
   // Detailed Ratings
-  story?: number | null; art?: number | null; character?: number | null; worldBuilding?: number | null; uniqueness?: number | null; enjoyment?: number | null;
+  ratingStory?: number | null; ratingArt?: number | null; ratingCharacter?: number | null; ratingWorldBuilding?: number | null; ratingUniqueness?: number | null; ratingEnjoyment?: number | null;
 }
 type GroupedLibrary = Record<string, FriendLibraryItem[]>;
 type ApiFetch = (path: string, options?: RequestInit) => Promise<any>;
@@ -107,12 +107,12 @@ function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLib
   if (!item) return null;
 
   const RATING_KEYS = [
-    { key: "story", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
-    { key: "art", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." },
-    { key: "character", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
-    { key: "worldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
-    { key: "uniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
-    { key: "enjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
+    { key: "ratingStory", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
+    { key: "ratingArt", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." },
+    { key: "ratingCharacter", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
+    { key: "ratingWorldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
+    { key: "ratingUniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
+    { key: "ratingEnjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
   ];
 
   const hasRatings = RATING_KEYS.some(r => (item as any)[r.key] != null && (item as any)[r.key] > 0);
@@ -144,14 +144,14 @@ function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLib
           </div>
 
           {/* Cover + Title */}
-          <div className="flex gap-4 px-5 -mt-10 mb-4">
+          <div className="flex gap-4 px-5 -mt-8 mb-4 items-end">
             <div className="relative z-10 w-16 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-muted border-2 border-card shadow-lg">
               {item.coverUrl || item.customCoverUrl
                 ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
                 : <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-6 h-6 text-muted-foreground/30" /></div>}
             </div>
-            <div className="flex-1 min-w-0 pt-8">
-              <h2 className="font-display font-bold text-lg leading-tight break-words min-w-0">{item.title}</h2>
+            <div className="flex-1 min-w-0 pb-1">
+              <h2 className="font-display font-bold text-lg leading-snug break-words">{item.title}</h2>
               <p className="text-xs capitalize font-medium mt-0.5 text-muted-foreground">{categoryLabel(item.category)}</p>
             </div>
           </div>
