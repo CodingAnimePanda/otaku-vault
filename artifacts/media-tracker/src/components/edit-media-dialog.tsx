@@ -312,7 +312,20 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
     <FormField control={form.control} name="coverUrl" render={({ field }) => (
       <FormItem>
         <FormLabel>Cover URL</FormLabel>
-        <FormControl><Input placeholder="https://..." {...field} className="text-xs" /></FormControl>
+        <FormControl>
+          <Input 
+            placeholder="https://..." 
+            {...field} 
+            className="text-xs"
+            onBlur={(e) => {
+              const url = e.target.value;
+              if (url.includes("uploads.mangadex.org")) {
+                const proxied = `https://otakuvault-api.onrender.com/api/media/proxy/image?url=${encodeURIComponent(url)}`;
+                field.onChange(proxied);
+              }
+            }}
+          />
+        </FormControl>
         <FormMessage />
         {field.value && <img src={field.value} alt="Cover preview" className="w-12 h-16 object-cover rounded-md mt-1 border border-border" />}
       </FormItem>

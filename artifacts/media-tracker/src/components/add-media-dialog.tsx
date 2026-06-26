@@ -389,8 +389,18 @@ export function AddMediaDialog({ open, onClose, defaultListType = "library" }: P
               <FormField control={form.control} name="customCoverUrl" render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input placeholder="Or paste custom image URL..." {...field} className="text-xs"
-                      onChange={(e) => { field.onChange(e); setSelectedCover(null); }} />
+                    <Input 
+                      placeholder="https://..." 
+                      {...field} 
+                      className="text-xs"
+                      onBlur={(e) => {
+                        const url = e.target.value;
+                        if (url.includes("uploads.mangadex.org")) {
+                          const proxied = `https://otakuvault-api.onrender.com/api/media/proxy/image?url=${encodeURIComponent(url)}`;
+                          field.onChange(proxied);
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
