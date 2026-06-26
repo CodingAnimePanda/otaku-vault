@@ -257,12 +257,12 @@ router.get("/friends/:friendClerkId/library", async (req, res): Promise<void> =>
       readingUrl: row.readingUrl ?? null,
       description: row.description ?? null,
       notes: row.notes ?? null,
-      story: row.story ?? null,
-      art: row.art ?? null,
-      character: row.character ?? null,
-      worldBuilding: row.worldBuilding ?? null,
-      uniqueness: row.uniqueness ?? null,
-      enjoyment: row.enjoyment ?? null,
+      ratingStory: row.ratingStory ?? null,
+      ratingArt: row.ratingArt ?? null,
+      ratingCharacter: row.ratingCharacter ?? null,
+      ratingWorldBuilding: row.ratingWorldBuilding ?? null,
+      ratingUniqueness: row.ratingUniqueness ?? null,
+      ratingEnjoyment: row.ratingEnjoyment ?? null,
     });
   }
   res.json({ grouped });
