@@ -417,23 +417,35 @@ function MediaDetailModal({ item, onClose, onEdit }: { item: any; onClose: () =>
             {/* Rating breakdown */}
             {(() => {
               const ratingKeys = [
-                { key: "story", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
-                { key: "art", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." },
-                { key: "character", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
-                { key: "worldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
-                { key: "uniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
-                { key: "enjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
+                { key: "ratingStory", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
+                { key: "ratingArt", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." },
+                { key: "ratingCharacter", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
+                { key: "ratingWorldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
+                { key: "ratingUniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
+                { key: "ratingEnjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
               ];
-              let savedRatings: Record<string, number> = {};
-              try { const s = localStorage.getItem(`ov_ratings_${item.id}`); if (s) savedRatings = JSON.parse(s); } catch {}
-              const hasAny = ratingKeys.some(r => (savedRatings[r.key] ?? 0) > 0);
+              // Try DB values first, fall back to localStorage (old data)
+              const lsKeyMap: Record<string, string> = {
+                ratingStory: "story", ratingArt: "art", ratingCharacter: "character",
+                ratingWorldBuilding: "worldBuilding", ratingUniqueness: "uniqueness", ratingEnjoyment: "enjoyment",
+              };
+              let lsRatings: Record<string, number> = {};
+              try { const s = localStorage.getItem(`ov_ratings_${item.id}`); if (s) lsRatings = JSON.parse(s); } catch {}
+              
+              const getRatingVal = (key: string) => {
+                const dbVal = item[key];
+                if (dbVal != null && dbVal > 0) return dbVal;
+                return lsRatings[lsKeyMap[key]] ?? 0;
+              };
+              
+              const hasAny = ratingKeys.some(r => getRatingVal(r.key) > 0);
               if (!hasAny) return null;
               return (
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rating Breakdown</p>
                   <div className="space-y-3">
                     {ratingKeys.map(({ key, label, desc }) => {
-                      const val = savedRatings[key] ?? 0;
+                      const val = getRatingVal(key);
                       if (val === 0) return null;
                       return (
                         <div key={key} className="space-y-0.5">

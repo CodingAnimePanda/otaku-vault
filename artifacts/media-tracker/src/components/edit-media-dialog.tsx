@@ -211,6 +211,16 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
       });
       setDropReason(dropReasons?.[media.id] ?? "");
       setRatings(loadRatings(media.id));
+      if ((media as any).ratingStory || (media as any).ratingArt) {
+        setRatings({
+          story: (media as any).ratingStory ?? 0,
+          art: (media as any).ratingArt ?? 0,
+          character: (media as any).ratingCharacter ?? 0,
+          worldBuilding: (media as any).ratingWorldBuilding ?? 0,
+          uniqueness: (media as any).ratingUniqueness ?? 0,
+          enjoyment: (media as any).ratingEnjoyment ?? 0,
+        });
+      }
       setGenres((media as any).genres ?? []);
       setCandidates(null);
     }
@@ -259,6 +269,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
   const onSubmit = (values: FormValues) => {
     if (!media) return;
     if (values.status === "dropped" && onSaveDropReason) onSaveDropReason(media.id, dropReason.trim());
+    // Still save to localStorage as backup
     saveRatings(media.id, ratings);
     updateMedia.mutate({
       id: media.id,
@@ -267,7 +278,14 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         listType: values.listType, notes: values.notes || null, coverUrl: values.coverUrl || null,
         readingUrl: values.readingUrl || null, reviewText: values.reviewText || null,
         description: (values as any).description || null,
-        rating: parseFloat(calculateAverage()), genres,
+        rating: parseFloat(calculateAverage()),
+        genres,
+        ratingStory: ratings.story || null,
+        ratingArt: ratings.art || null,
+        ratingCharacter: ratings.character || null,
+        ratingWorldBuilding: ratings.worldBuilding || null,
+        ratingUniqueness: ratings.uniqueness || null,
+        ratingEnjoyment: ratings.enjoyment || null,
       } as any,
     }, {
       onSuccess: () => {

@@ -19,6 +19,12 @@ export const mediaTable = pgTable("media", {
   customCoverUrl: text("custom_cover_url"),
   tier: text("tier"), // S | A | B | C | D | F
   rating: real("rating"),
+  ratingStory: real("rating_story"),
+  ratingArt: real("rating_art"),
+  ratingCharacter: real("rating_character"),
+  ratingWorldBuilding: real("rating_world_building"),
+  ratingUniqueness: real("rating_uniqueness"),
+  ratingEnjoyment: real("rating_enjoyment"),
   genres: text("genres").array().notNull().default([]),
   notes: text("notes"),
   hasUpdate: boolean("has_update").notNull().default(false),
