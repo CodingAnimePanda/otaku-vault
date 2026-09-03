@@ -13,11 +13,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Plus, BookOpen, Tv, Sparkles, PlayCircle, Clock,
-  Search, ExternalLink, Pencil, XCircle, AlertTriangle,
-  Heart, Star, LayoutGrid, List, Image, ArrowUpDown,
-  Shuffle, Trophy, ChevronDown, ChevronUp, X, Loader2, Wand2,
+import { 
+  Plus, BookOpen, Tv, Sparkles, PlayCircle, Clock, 
+  Search, ExternalLink, Pencil, XCircle, AlertTriangle, 
+  Heart, Star, LayoutGrid, List, Image, ArrowUpDown, 
+  Shuffle, Trophy, ChevronDown, ChevronUp, X, Send 
 } from "lucide-react";
 import { AddMediaDialog } from "@/components/add-media-dialog";
 import { EditMediaDialog } from "@/components/edit-media-dialog";
