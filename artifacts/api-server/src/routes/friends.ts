@@ -1,3 +1,4 @@
+// artifacts/api-server/src/routes/friends.ts
 import { Router, type IRouter } from "express";
 import { eq, and, or } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
@@ -177,39 +178,41 @@ router.delete("/friends/:friendshipId", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-// ─── Library Sharing & Friend's Library ───────────────────────────────────────
+// ─── Sharing Toggles & Status ──────────────────────────────────────────────────
 
-// PATCH /friends/:friendClerkId/share — toggle sharing YOUR library with this friend
 router.patch("/friends/:friendClerkId/share", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
   const { friendClerkId } = req.params;
   const { enabled } = req.body;
-  if (typeof enabled !== "boolean") { res.status(400).json({ error: "enabled (boolean) is required" }); return; }
 
   const [existing] = await db.select().from(librarySharingTable).where(
-    and(eq(librarySharingTable.ownerId, userId), eq(librarySharingTable.friendId, friendClerkId))
+    and(eq(librarySharingTable.userId, userId), eq(librarySharingTable.friendUserId, friendClerkId))
   );
 
   if (existing) {
-    const [updated] = await db.update(librarySharingTable).set({ enabled })
-      .where(eq(librarySharingTable.id, existing.id)).returning();
+    const [updated] = await db.update(librarySharingTable)
+      .set({ enabled: !!enabled })
+      .where(eq(librarySharingTable.id, existing.id))
+      .returning();
     res.json(updated);
   } else {
     const [created] = await db.insert(librarySharingTable)
-      .values({ ownerId: userId, friendId: friendClerkId, enabled }).returning();
+      .values({ userId, friendUserId: friendClerkId, enabled: !!enabled })
+      .returning();
     res.status(201).json(created);
   }
 });
 
-// GET /friends/:friendClerkId/share-status — am I sharing my library with them?
 router.get("/friends/:friendClerkId/share-status", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
   const { friendClerkId } = req.params;
+
   const [row] = await db.select().from(librarySharingTable).where(
-    and(eq(librarySharingTable.ownerId, userId), eq(librarySharingTable.friendId, friendClerkId))
+    and(eq(librarySharingTable.userId, userId), eq(librarySharingTable.friendUserId, friendClerkId))
   );
+
   res.json({ enabled: row?.enabled ?? false });
 });
 
@@ -231,41 +234,47 @@ router.get("/friends/:friendClerkId/library", async (req, res): Promise<void> =>
   if (!friendship) { res.status(403).json({ error: "Not friends with this user" }); return; }
 
   const [share] = await db.select().from(librarySharingTable).where(
-    and(eq(librarySharingTable.ownerId, friendClerkId), eq(librarySharingTable.friendId, userId))
+    and(eq(librarySharingTable.userId, friendClerkId), eq(librarySharingTable.friendUserId, userId))
   );
-  if (!share?.enabled) { res.status(403).json({ error: "not_shared" }); return; }
-
-  const rows = await db.select().from(mediaTable)
-    .where(and(eq(mediaTable.userId, friendClerkId), eq(mediaTable.listType, "library")))
-    .orderBy(mediaTable.createdAt);
-
-  const grouped: Record<string, any[]> = { S: [], A: [], B: [], C: [], D: [], F: [], Unranked: [] };
-  for (const row of rows) {
-    const tier = row.tier && grouped[row.tier] ? row.tier : "Unranked";
-    grouped[tier].push({
-      id: row.id,
-      title: row.title,
-      category: row.category,
-      status: row.status,
-      coverUrl: row.coverUrl ?? null,
-      customCoverUrl: row.customCoverUrl ?? null,
-      tier: row.tier ?? null,
-      rating: row.rating ?? null,
-      reviewText: row.reviewText ?? null,
-      genres: row.genres ?? [],
-      currentChapter: row.currentChapter ?? null,
-      readingUrl: row.readingUrl ?? null,
-      description: row.description ?? null,
-      notes: row.notes ?? null,
-      ratingStory: row.ratingStory ?? null,
-      ratingArt: row.ratingArt ?? null,
-      ratingCharacter: row.ratingCharacter ?? null,
-      ratingWorldBuilding: row.ratingWorldBuilding ?? null,
-      ratingUniqueness: row.ratingUniqueness ?? null,
-      ratingEnjoyment: row.ratingEnjoyment ?? null,
-    });
+  if (!share || !share.enabled) {
+    res.status(403).json({ error: "not_shared" }); return;
   }
-  res.json({ grouped });
+
+  const items = await db.select().from(mediaTable)
+    .where(and(eq(mediaTable.userId, friendClerkId), eq(mediaTable.listType, "library")));
+
+  const formatted = items.map((row) => ({
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    status: row.status,
+    tier: row.tier ?? "Unranked",
+    rating: row.rating ?? null,
+    ratingStory: row.ratingStory ?? null,
+    ratingArt: row.ratingArt ?? null,
+    ratingCharacter: row.ratingCharacter ?? null,
+    ratingWorldBuilding: row.ratingWorldBuilding ?? null,
+    ratingUniqueness: row.ratingUniqueness ?? null,
+    ratingEnjoyment: row.ratingEnjoyment ?? null,
+    reviewText: row.reviewText ?? null,
+    coverUrl: row.coverUrl ?? null,
+    customCoverUrl: row.customCoverUrl ?? null,
+    genres: row.genres ?? [],
+    description: row.description ?? null,
+    notes: row.notes ?? null,
+    readingUrl: row.readingUrl ?? null,
+  }));
+
+  const grouped: Record<string, typeof formatted> = {
+    S: [], A: [], B: [], C: [], D: [], F: [], Unranked: [],
+  };
+
+  formatted.forEach((item) => {
+    const t = item.tier && grouped[item.tier] ? item.tier : "Unranked";
+    grouped[t].push(item);
+  });
+
+  res.json({ grouped, items: formatted });
 });
 
 // ─── Recommendations ──────────────────────────────────────────────────────────
@@ -274,34 +283,25 @@ router.post("/friends/recommendations", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const { toUsername, title, category, coverUrl, readingUrl, message,
-          rating, ratingStory, ratingArt, ratingCharacter, ratingWorldBuilding,
-          ratingUniqueness, ratingEnjoyment, reviewText, genres } = req.body;
+  const { toUsername, title, category, coverUrl, readingUrl, message } = req.body;
   if (!toUsername || !title) { res.status(400).json({ error: "toUsername and title are required" }); return; }
 
   const [target] = await db.select().from(usersTable).where(eq(usersTable.username, toUsername));
   if (!target) { res.status(404).json({ error: "User not found" }); return; }
 
   const [friendship] = await db.select().from(friendshipsTable).where(
-    and(eq(friendshipsTable.status, "accepted"), or(
-      and(eq(friendshipsTable.senderId, userId), eq(friendshipsTable.receiverId, target.clerkId)),
-      and(eq(friendshipsTable.senderId, target.clerkId), eq(friendshipsTable.receiverId, userId))
-    ))
+    and(
+      eq(friendshipsTable.status, "accepted"),
+      or(
+        and(eq(friendshipsTable.senderId, userId), eq(friendshipsTable.receiverId, target.clerkId)),
+        and(eq(friendshipsTable.senderId, target.clerkId), eq(friendshipsTable.receiverId, userId))
+      )
+    )
   );
   if (!friendship) { res.status(403).json({ error: "You can only send recs to friends" }); return; }
 
   const [created] = await db.insert(recommendationsTable)
-    .values({
-      fromUserId: userId, toUserId: target.clerkId, title,
-      category: category ?? null, coverUrl: coverUrl ?? null,
-      readingUrl: readingUrl ?? null, message: message ?? null, isRead: false,
-      rating: rating ?? null,
-      ratingStory: ratingStory ?? null, ratingArt: ratingArt ?? null,
-      ratingCharacter: ratingCharacter ?? null, ratingWorldBuilding: ratingWorldBuilding ?? null,
-      ratingUniqueness: ratingUniqueness ?? null, ratingEnjoyment: ratingEnjoyment ?? null,
-      reviewText: reviewText ?? null,
-      genres: genres ?? [],
-    })
+    .values({ fromUserId: userId, toUserId: target.clerkId, title, category: category ?? null, coverUrl: coverUrl ?? null, readingUrl: readingUrl ?? null, message: message ?? null, isRead: false })
     .returning();
   res.status(201).json(created);
 });
