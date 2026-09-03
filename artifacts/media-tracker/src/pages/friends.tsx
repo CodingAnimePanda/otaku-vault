@@ -4,7 +4,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Users, UserPlus, BookOpen, Send, Check, X, Search, Heart, Inbox, Star, ToggleLeft, ToggleRight, ArrowLeft, Trophy, LayoutGrid } from "lucide-react";
+import { 
+  Plus, BookOpen, Tv, Sparkles, PlayCircle, Clock, 
+  Search, ExternalLink, Pencil, XCircle, AlertTriangle, 
+  Heart, Star, LayoutGrid, List, Image, ArrowUpDown, 
+  Shuffle, Trophy, ChevronDown, ChevronUp, X, Wand2, Loader2 
+} from "lucide-react";
 import { cn, proxyImage } from "@/lib/utils";
 import { QuickRecDialog } from "@/components/quick-rec-dialog";
 
