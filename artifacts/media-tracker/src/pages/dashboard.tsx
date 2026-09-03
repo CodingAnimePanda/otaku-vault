@@ -17,7 +17,7 @@ import {
   Plus, BookOpen, Tv, Sparkles, PlayCircle, Clock, 
   Search, ExternalLink, Pencil, XCircle, AlertTriangle, 
   Heart, Star, LayoutGrid, List, Image, ArrowUpDown, 
-  Shuffle, Trophy, ChevronDown, ChevronUp, X, Wand2, Loader2 
+  Shuffle, Trophy, ChevronDown, ChevronUp, X, Wand2, Loader2, Send 
 } from "lucide-react";
 import { AddMediaDialog } from "@/components/add-media-dialog";
 import { EditMediaDialog } from "@/components/edit-media-dialog";
