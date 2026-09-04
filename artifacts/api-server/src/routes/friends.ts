@@ -8,13 +8,6 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-const sentToday = await db.select().from(recommendationsTable)
-  .where(and(eq(recommendationsTable.fromUserId, userId), gte(recommendationsTable.createdAt, startOfDay)));
-if (sentToday.length >= 5) {
-  return res.status(429).json({ error: "Daily recommendation limit reached (5/day). Try again tomorrow." });
-}
-
 function requireAuth(req: any, res: any): string | null {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return null; }
@@ -289,6 +282,13 @@ router.get("/friends/:friendClerkId/library", async (req, res): Promise<void> =>
 router.post("/friends/recommendations", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+
+  const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+  const sentToday = await db.select().from(recommendationsTable)
+    .where(and(eq(recommendationsTable.fromUserId, userId), gte(recommendationsTable.createdAt, startOfDay)));
+  if (sentToday.length >= 5) {
+    return res.status(429).json({ error: "Daily recommendation limit reached (5/day). Try again tomorrow." });
+  }
 
   const { toUsername, title, category, coverUrl, readingUrl, message } = req.body;
   if (!toUsername || !title) { res.status(400).json({ error: "toUsername and title are required" }); return; }

@@ -167,7 +167,7 @@ export const GetMediaUpdatesResponseItem = zod.object({
   ratingWorldBuilding: zod.number().nullish(),
   ratingUniqueness: zod.number().nullish(),
   ratingEnjoyment: zod.number().nullish(),
-  ratingSourceAccuracy: zod.number().nullish()
+  ratingSourceAccuracy: zod.number().nullish(),
   description: zod.string().nullish(),
   genres: zod.array(zod.string()),
   notes: zod.string().nullish(),
