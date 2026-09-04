@@ -1,12 +1,110 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { useGetMediaStats, useListMedia } from "@workspace/api-client-react";
-import { proxyImage } from "@/lib/utils";
-import { Trophy, BookOpen, Star, Share2, LayoutGrid, Send } from "lucide-react";
+import { proxyImage, cn } from "@/lib/utils";
+import { Trophy, BookOpen, Star, Share2, LayoutGrid, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserProfile { id: number; clerkId: string; username: string; displayName: string | null; avatarUrl: string | null; }
+
+const CATEGORY_ORDER = ["manhwa", "webtoon", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"];
+const TIER_ORDER: Record<string, number> = { S: 0, A: 1, B: 2, C: 3, D: 4, F: 5 };
+
+function getRatingLabels(category: string) {
+  const artLabel = category === "anime" ? "Animation" : category === "webnovel" ? "Formatting & Translation" : "Art Style & Coloring";
+  return [
+    { key: "ratingStory", label: "Story & Pacing" },
+    { key: "ratingArt", label: artLabel },
+    { key: "ratingCharacter", label: "Character Development" },
+    { key: "ratingWorldBuilding", label: "World-Building" },
+    { key: "ratingUniqueness", label: "Uniqueness & Execution" },
+    { key: "ratingEnjoyment", label: "Enjoyment Factor" },
+  ];
+}
+
+function ProfileDetailModal({ item, onClose }: { item: any; onClose: () => void }) {
+  if (!item) return null;
+  const ratingKeys = getRatingLabels(item.category);
+  const hasRatings = ratingKeys.some(r => (item as any)[r.key] > 0);
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative z-10 flex items-center justify-center w-full h-full p-4">
+        <div className="bg-card border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="relative h-32 rounded-t-2xl overflow-hidden bg-muted">
+            {item.coverUrl || item.customCoverUrl
+              ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover opacity-40" />
+              : <div className="w-full h-full bg-gradient-to-br from-primary/20 to-transparent" />}
+            <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
+            <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="flex gap-4 px-5 -mt-8 mb-4 items-end">
+            <div className="relative z-10 w-16 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-muted border-2 border-card shadow-lg">
+              {item.coverUrl || item.customCoverUrl
+                ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-6 h-6 text-muted-foreground/30" /></div>}
+            </div>
+            <div className="flex-1 min-w-0 pb-1">
+              <h2 className="font-display font-bold text-lg leading-snug break-words">{item.title}</h2>
+              <p className="text-xs capitalize font-medium mt-0.5 text-muted-foreground">{item.category}</p>
+            </div>
+          </div>
+          <div className="px-5 pb-5 space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {item.tier && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Tier {item.tier}</span>}
+              {item.rating != null && <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary flex items-center gap-1"><Star className="w-3 h-3 fill-primary" />{item.rating}/10</span>}
+            </div>
+            {item.genres?.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {item.genres.map((g: string) => <span key={g} className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary/10 text-primary">{g}</span>)}
+              </div>
+            )}
+            {hasRatings && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rating Breakdown</p>
+                {ratingKeys.map(({ key, label }) => {
+                  const val = (item as any)[key];
+                  if (!val) return null;
+                  return (
+                    <div key={key} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-medium">{label}</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${val * 10}%` }} /></div>
+                        <span className="tabular-nums w-8 text-right">{val}/10</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {item.ratingSourceAccuracy > 0 && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-medium">Source Accuracy</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${item.ratingSourceAccuracy * 10}%` }} /></div>
+                      <span className="tabular-nums w-8 text-right">{item.ratingSourceAccuracy}/10</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {item.description && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</p>
+                <p className="text-sm leading-relaxed text-foreground/90">{item.description}</p>
+              </div>
+            )}
+            {item.reviewText && (
+              <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Review</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{item.reviewText}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const { user } = useUser();
@@ -15,6 +113,8 @@ export default function ProfilePage() {
   const { data: stats } = useGetMediaStats();
   const { data: media } = useListMedia({ listType: "library" });
   const [ovProfile, setOvProfile] = useState<UserProfile | null>(null);
+  const [activeCat, setActiveCat] = useState<string>("all");
+  const [detailItem, setDetailItem] = useState<any | null>(null);
 
   const apiFetch = useCallback(async (path: string) => {
     const token = await getToken();
@@ -33,24 +133,14 @@ export default function ProfilePage() {
   const avgRating = mediaArray.filter(m => m.rating && m.rating > 0);
   const avgRatingVal = avgRating.length > 0 ? (avgRating.reduce((a, b) => a + (b.rating ?? 0), 0) / avgRating.length).toFixed(1) : "—";
 
-  // Group by category for full library
-  const CATEGORY_ORDER = ["manhwa", "webtoon", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"];
-const TIER_ORDER: Record<string, number> = { S: 0, A: 1, B: 2, C: 3, D: 4, F: 5 };
-
-const byCategory = mediaArray.reduce((acc, item) => {
-  const cat = item.category || "other";
-  if (!acc[cat]) acc[cat] = [];
-  acc[cat].push(item);
-  return acc;
-}, {} as Record<string, typeof mediaArray>);
-
-Object.values(byCategory).forEach((items) => {
-  items.sort((a, b) => (TIER_ORDER[a.tier ?? ""] ?? 6) - (TIER_ORDER[b.tier ?? ""] ?? 6));
-});
-
-const sortedCategoryEntries = Object.entries(byCategory).sort(
-  ([a], [b]) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b)
-);
+  const byCategory = mediaArray.reduce((acc, item) => {
+    const cat = item.category || "other";
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(item);
+    return acc;
+  }, {} as Record<string, typeof mediaArray>);
+  Object.values(byCategory).forEach((items) => items.sort((a, b) => (TIER_ORDER[a.tier ?? ""] ?? 6) - (TIER_ORDER[b.tier ?? ""] ?? 6)));
+  const sortedCategoryEntries = Object.entries(byCategory).sort(([a], [b]) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b));
 
   const categoryLabel = (cat: string) =>
     cat === "normie_tv" ? "TV Shows" : cat === "normie_movie" ? "Movies" : cat === "normie_book" ? "Books" : cat;
@@ -64,10 +154,12 @@ const sortedCategoryEntries = Object.entries(byCategory).sort(
     toast({ title: "Link Copied!", description: "Your Vault Profile link is ready to share." });
   };
 
+  const visibleEntries = activeCat === "all" ? sortedCategoryEntries : sortedCategoryEntries.filter(([cat]) => cat === activeCat);
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in zoom-in-95 duration-500 pb-12">
+      {detailItem && <ProfileDetailModal item={detailItem} onClose={() => setDetailItem(null)} />}
 
-      {/* Profile Header — matches FriendProfileView */}
       <div className="relative rounded-2xl overflow-hidden border border-border bg-card shadow-xl max-w-3xl mx-auto">
         <div className="h-32 bg-gradient-to-r from-primary/40 via-primary/20 to-transparent"></div>
         <div className="px-6 pb-6 pt-0 relative flex flex-col sm:flex-row items-center sm:items-end gap-4 -mt-12">
@@ -76,13 +168,10 @@ const sortedCategoryEntries = Object.entries(byCategory).sort(
             <h1 className="text-2xl font-display font-bold">{displayName}</h1>
             <p className="text-muted-foreground text-sm">@{username}</p>
           </div>
-          <Button onClick={handleShare} variant="outline" className="gap-2">
-            <Share2 className="w-4 h-4" /> Share Profile
-          </Button>
+          <Button onClick={handleShare} variant="outline" className="gap-2"><Share2 className="w-4 h-4" /> Share Profile</Button>
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
         <div className="p-5 rounded-xl border border-border bg-card/50 flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500"><BookOpen className="w-6 h-6" /></div>
@@ -98,16 +187,12 @@ const sortedCategoryEntries = Object.entries(byCategory).sort(
         </div>
       </div>
 
-      {/* Top Favorites */}
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center gap-2 mb-4">
-          <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-          <h2 className="text-xl font-display font-bold">All-Time Favorites</h2>
-        </div>
-        {topFavorites.length > 0 ? (
+      {topFavorites.length > 0 && (
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-center gap-2 mb-4"><Star className="w-5 h-5 text-yellow-500 fill-yellow-500" /><h2 className="text-xl font-display font-bold">All-Time Favorites</h2></div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {topFavorites.map((item, i) => (
-              <div key={item.id} className="group relative aspect-[2/3] rounded-xl overflow-hidden border border-border shadow-md">
+              <div key={item.id} onClick={() => setDetailItem(item)} className="group relative aspect-[2/3] rounded-xl overflow-hidden border border-border shadow-md cursor-pointer">
                 {item.coverUrl || item.customCoverUrl
                   ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   : <div className="w-full h-full bg-muted flex items-center justify-center"><BookOpen className="w-8 h-8 text-muted-foreground/30" /></div>}
@@ -119,25 +204,38 @@ const sortedCategoryEntries = Object.entries(byCategory).sort(
               </div>
             ))}
           </div>
-        ) : (
-          <div className="p-8 text-center border border-dashed rounded-xl border-border bg-card/30">
-            <p className="text-muted-foreground">Rank items as S-Tier to show them off here!</p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Full Library by Category */}
       <div className="space-y-6 pt-4 border-t border-border">
-        <h2 className="text-xl font-display font-bold flex items-center gap-2"><LayoutGrid className="w-5 h-5 text-primary" /> Full Library</h2>
-        {sortedCategoryEntries.map(([cat, items]) => (
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-xl font-display font-bold flex items-center gap-2 mr-2"><LayoutGrid className="w-5 h-5 text-primary" /> Full Library</h2>
+        </div>
+
+        <div className="flex gap-1.5 flex-wrap border-b border-border pb-3">
+          <button onClick={() => setActiveCat("all")}
+            className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all", activeCat === "all" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground")}>
+            All
+          </button>
+          {sortedCategoryEntries.map(([cat, items]) => (
+            <button key={cat} onClick={() => setActiveCat(cat)}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize", activeCat === cat ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground")}>
+              {categoryLabel(cat)} <span className="opacity-70">({items.length})</span>
+            </button>
+          ))}
+        </div>
+
+        {visibleEntries.map(([cat, items]) => (
           <div key={cat} className="space-y-3">
-            <h3 className="font-display text-lg font-bold capitalize flex items-center gap-2 border-b border-border pb-2">
-              {categoryLabel(cat)}
-              <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{items.length}</span>
-            </h3>
+            {activeCat === "all" && (
+              <h3 className="font-display text-lg font-bold capitalize flex items-center gap-2 border-b border-border pb-2">
+                {categoryLabel(cat)}
+                <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{items.length}</span>
+              </h3>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
               {items.map(item => (
-                <div key={item.id} className="group relative">
+                <div key={item.id} className="group relative cursor-pointer" onClick={() => setDetailItem(item)}>
                   <div className="aspect-[2/3] bg-muted rounded-xl overflow-hidden relative ring-1 ring-border/50 group-hover:ring-primary/40 transition-all duration-300">
                     {item.coverUrl || item.customCoverUrl
                       ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -154,7 +252,6 @@ const sortedCategoryEntries = Object.entries(byCategory).sort(
           </div>
         ))}
       </div>
-
     </div>
   );
 }

@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { cn, proxyImage } from "@/lib/utils";
 import { QuickRecDialog } from "@/components/quick-rec-dialog";
+import { useCreateMedia, getListMediaQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface UserProfile { id: number; clerkId: string; username: string; displayName: string | null; avatarUrl: string | null; }
@@ -261,7 +263,7 @@ function InlineQuickRecDialog({ open, onClose, item, friends, apiFetch }: {
 
 // ── Friend Media Details Dialog ───────────────────────────────────────────────
 
-function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLibraryItem | null, open: boolean, onClose: () => void, onSendRec: (title: string) => void }) {
+function FriendMediaDialog({ item, open, onClose, onSendRec, onAddToRead }: { item: FriendLibraryItem | null, open: boolean, onClose: () => void, onSendRec: (title: string) => void, onAddToRead: (item: FriendLibraryItem) => void }) {
   if (!item) return null;
 
   const RATING_KEYS = [
@@ -383,12 +385,15 @@ function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLib
             )}
 
             {/* Reading link + Send rec */}
-            <div className="flex gap-2 pt-2 border-t border-border">
+              <div className="flex gap-2 pt-2 border-t border-border flex-wrap">
               {item.readingUrl && (
                 <a href={item.readingUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
                   <Button variant="outline" className="w-full gap-2"><BookOpen className="w-4 h-4" /> Read</Button>
                 </a>
               )}
+              <Button variant="outline" className="flex-1 gap-2" onClick={() => onAddToRead(item)}>
+                <BookOpen className="w-4 h-4" /> Add to My To-Read
+              </Button>
               <Button className="flex-1 gap-2" onClick={() => { onClose(); onSendRec(item.title); }}>
                 <Send className="w-4 h-4" /> Rec Back
               </Button>
@@ -402,6 +407,22 @@ function FriendMediaDialog({ item, open, onClose, onSendRec }: { item: FriendLib
 
 // ── Inline Friend Profile View ────────────────────────────────────────────────
 function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: FriendEntry; onBack: () => void; onSendRec: (title: string) => void; apiFetch: ApiFetch; }) {
+  const createMedia = useCreateMedia();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [activeCat, setActiveCat] = useState<string>("all");
+
+  const handleAddToRead = (item: FriendLibraryItem) => {
+    createMedia.mutate(
+      { data: { title: item.title, category: item.category as any, listType: "to_read", coverUrl: item.coverUrl ?? null, genres: item.genres ?? [], addedBy: friend.friend?.username ?? "a friend" } },
+      { onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListMediaQueryKey({ listType: "to_read" }) });
+          toast({ title: "Added to To-Read!", description: `${item.title} added to your to-read list.` });
+        },
+        onError: () => toast({ title: "Failed to add", variant: "destructive" }),
+      }
+    );
+  };  
   const [grouped, setGrouped] = useState<GroupedLibrary | null>(null);
   const [loading, setLoading] = useState(true);
   const [notShared, setNotShared] = useState(false);
@@ -505,10 +526,23 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
               </div>
             </div>
 
+            <div className="flex gap-1.5 flex-wrap">
+              <button onClick={() => setActiveCat("all")}
+                className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all", activeCat === "all" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground")}>
+                All
+              </button>
+              {Object.keys(itemsByCategory).map((cat) => (
+                <button key={cat} onClick={() => setActiveCat(cat)}
+                  className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize", activeCat === cat ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground")}>
+                  {cat === "normie_tv" ? "TV Shows" : cat === "normie_movie" ? "Movies" : cat === "normie_book" ? "Books" : cat} ({itemsByCategory[cat].length})
+                </button>
+              ))}
+            </div>
+
             {Object.keys(itemsByCategory).length === 0 ? (
               <p className="text-center text-muted-foreground py-8 text-sm">No items match your search.</p>
             ) : (
-              Object.entries(itemsByCategory).map(([category, items]) => (
+              Object.entries(itemsByCategory).filter(([cat]) => activeCat === "all" || cat === activeCat).map(([category, items]) => (
                 <div key={category} className="space-y-3">
                   <h3 className="font-display text-lg font-bold capitalize flex items-center gap-2 border-b border-border pb-2">
                     {category === "normie_tv" ? "TV Shows" : category === "normie_movie" ? "Movies" : category === "normie_book" ? "Books" : category}
@@ -544,12 +578,12 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
           </div>
         </div>
       )}
-
       <FriendMediaDialog 
         item={selectedItem} 
         open={!!selectedItem} 
         onClose={() => setSelectedItem(null)} 
         onSendRec={(title) => { setRecItem(selectedItem); setSelectedItem(null); }} 
+        onAddToRead={handleAddToRead}
       />
     </div>
   );
