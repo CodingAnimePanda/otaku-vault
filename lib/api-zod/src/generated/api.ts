@@ -58,7 +58,7 @@ export const ListMediaResponseItem = zod.object({
   ratingWorldBuilding: zod.number().nullish(),
   ratingUniqueness: zod.number().nullish(),
   ratingEnjoyment: zod.number().nullish(),
-  ratingSourceAccuracy: zod.number().nullish()
+  ratingSourceAccuracy: zod.number().nullish(),
   description: zod.string().nullish(),
   reviewText: z.string().optional().nullable(),
   genres: zod.array(zod.string()),
