@@ -79,8 +79,8 @@ export const ListMediaResponse = zod.array(ListMediaResponseItem);
  */
 export const CreateMediaBody = zod.object({
   title: zod.string(),
-  category: ,
-  listType: zod.enum(["library", "to_read", "avoid", "bl"]),zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"])
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]),
+  listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
       "reading",
