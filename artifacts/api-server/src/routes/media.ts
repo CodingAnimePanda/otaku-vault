@@ -236,12 +236,20 @@ router.post("/media", async (req, res): Promise<void> => {
     listType: data.listType,
     status: data.status ?? null,
     coverUrl: data.coverUrl ?? null,
-    genres: [],
+    genres: (data as any).genres ?? [],
     notes: data.notes ?? null,
     addedBy: data.addedBy ?? null,
     userId: userId,
     readingUrl: data.readingUrl ?? null,
     description: (data as any).description ?? null,
+    rating: (data as any).rating ?? null,
+    ratingStory: (data as any).ratingStory ?? null,
+    ratingArt: (data as any).ratingArt ?? null,
+    ratingCharacter: (data as any).ratingCharacter ?? null,
+    ratingWorldBuilding: (data as any).ratingWorldBuilding ?? null,
+    ratingUniqueness: (data as any).ratingUniqueness ?? null,
+    ratingEnjoyment: (data as any).ratingEnjoyment ?? null,
+    ratingSourceAccuracy: (data as any).ratingSourceAccuracy ?? null,
   }).returning();
 
   res.status(201).json(serializeMedia(row));
