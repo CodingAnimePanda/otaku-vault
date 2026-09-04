@@ -19,6 +19,8 @@ const CATEGORY_LABELS: Record<Category, string> = {
   webnovel: "Webnovels",
 };
 
+const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const;
+
 type Category = (typeof CATEGORIES)[number];
 const TIERS = ["S", "A", "B", "C", "D", "F"] as const;
 type Tier = (typeof TIERS)[number];
