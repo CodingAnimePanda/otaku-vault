@@ -22,12 +22,6 @@ const CATEGORY_DOT: Record<string, string> = {
   webnovel: "bg-emerald-400",
 };
 
-const CATEGORY_DOT: Record<string, string> = {
-  webtoon: "bg-blue-400",
-  manhwa: "bg-purple-400",
-  manga: "bg-orange-400",
-};
-
 export default function ToRead() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
