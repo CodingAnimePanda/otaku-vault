@@ -10,7 +10,7 @@ export default function ReviewsPage() {
   const [editingMedia, setEditingMedia] = useState<any>(null);
   const { data: media } = useListMedia({ listType: "library" });
   
-  const categories = ["manhwa", "webtoon", "manhua", "manga", "anime"];
+  const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const;
   const allMedia = media || [];
 
   return (

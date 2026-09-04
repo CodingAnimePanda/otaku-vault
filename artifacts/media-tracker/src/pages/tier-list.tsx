@@ -10,7 +10,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { cn, proxyImage } from "@/lib/utils";
 import { ChevronDown, ChevronRight, GripHorizontal } from "lucide-react";
 
-const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime"] as const;
+const CATEGORY_LABELS: Record<Category, string> = {
+  webtoon: "Webtoons",
+  manhwa: "Manhwa",
+  manhua: "Manhua",
+  manga: "Manga",
+  anime: "Anime",
+  webnovel: "Webnovels",
+};
+
 type Category = (typeof CATEGORIES)[number];
 const TIERS = ["S", "A", "B", "C", "D", "F"] as const;
 type Tier = (typeof TIERS)[number];

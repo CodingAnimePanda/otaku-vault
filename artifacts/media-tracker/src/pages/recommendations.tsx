@@ -13,7 +13,10 @@ import { Star, Sparkles, BookOpen, ListPlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-const CATEGORIES = ["webtoon", "manhwa", "manga", "anime"] as const;
+const CATEGORY_LABELS: Record<Category, string> = {
+  webtoon: "Webtoons", manhwa: "Manhwa", manga: "Manga", anime: "Anime", webnovel: "Webnovels",
+};
+
 type Category = (typeof CATEGORIES)[number];
 
 const CATEGORY_LABELS: Record<Category, string> = {

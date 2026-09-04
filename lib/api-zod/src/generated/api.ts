@@ -115,9 +115,8 @@ export const GetMediaStatsResponse = zod.object({
  * @summary Get recommendations based on library
  */
 export const GetRecommendationsQueryParams = zod.object({
-  category: zod.enum([["webtoon", "manhwa", "manhua", "manga", "anime"]]).optional(),
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"]).optional(),
 });
-
 export const GetRecommendationsResponseItem = zod.object({
   title: zod.string(),
   category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]),
