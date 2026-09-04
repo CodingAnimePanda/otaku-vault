@@ -32,14 +32,6 @@ const TIER_CONFIG: Record<Tier, { label: string; color: string; bg: string }> = 
   F: { label: "F — Dropped", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30 text-red-500" },
 };
 
-const CATEGORY_LABELS: Record<Category, string> = {
-  webtoon: "Webtoons",
-  manhwa: "Manhwa",
-  manhua: "Manhua",
-  manga: "Manga",
-  anime: "Anime",
-};
-
 export default function TierList() {
   const params = useParams<{ category: string }>();
   const [, setLocation] = useLocation();
