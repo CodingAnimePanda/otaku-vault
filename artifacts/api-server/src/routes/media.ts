@@ -41,6 +41,7 @@ function serializeMedia(row: typeof mediaTable.$inferSelect) {
     ratingWorldBuilding: row.ratingWorldBuilding ?? null,
     ratingUniqueness: row.ratingUniqueness ?? null,
     ratingEnjoyment: row.ratingEnjoyment ?? null,
+    ratingSourceAccuracy: row.ratingSourceAccuracy ?? null,
     reviewText: row.reviewText ?? null,
     genres: row.genres ?? [],
     notes: row.notes ?? null,
@@ -277,6 +278,7 @@ router.put("/media/:id", async (req, res): Promise<void> => {
       ratingWorldBuilding: req.body.ratingWorldBuilding ?? null,
       ratingUniqueness: req.body.ratingUniqueness ?? null,
       ratingEnjoyment: req.body.ratingEnjoyment ?? null,
+      ratingSourceAccuracy: data.ratingSourceAccuracy,
     })
     .where(and(eq(mediaTable.id, mediaId), eq(mediaTable.userId, userId)))
     .returning();

@@ -58,6 +58,7 @@ export const ListMediaResponseItem = zod.object({
   ratingWorldBuilding: zod.number().nullish(),
   ratingUniqueness: zod.number().nullish(),
   ratingEnjoyment: zod.number().nullish(),
+  ratingSourceAccuracy: zod.number().nullish()
   description: zod.string().nullish(),
   reviewText: z.string().optional().nullable(),
   genres: zod.array(zod.string()),
@@ -97,6 +98,14 @@ export const CreateMediaBody = zod.object({
   currentChapter: zod.string().nullish(),
   addedBy: zod.string().nullish(),
   readingUrl: zod.string().nullish(),
+  ratingStory: z.number().optional().nullable(),
+  ratingArt: z.number().optional().nullable(),
+  ratingCharacter: z.number().optional().nullable(),
+  ratingWorldBuilding: z.number().optional().nullable(),
+  ratingUniqueness: z.number().optional().nullable(),
+  ratingEnjoyment: z.number().optional().nullable(),
+  ratingSourceAccuracy: z.number().optional().nullable(),
+  rating: z.number().optional().nullable(),
 });
 
 /**
@@ -158,6 +167,7 @@ export const GetMediaUpdatesResponseItem = zod.object({
   ratingWorldBuilding: zod.number().nullish(),
   ratingUniqueness: zod.number().nullish(),
   ratingEnjoyment: zod.number().nullish(),
+  ratingSourceAccuracy: zod.number().nullish()
   description: zod.string().nullish(),
   genres: zod.array(zod.string()),
   notes: zod.string().nullish(),
@@ -221,6 +231,7 @@ export const GetMediaResponse = zod.object({
   ratingWorldBuilding: zod.number().nullish(),
   ratingUniqueness: zod.number().nullish(),
   ratingEnjoyment: zod.number().nullish(),
+  ratingSourceAccuracy: zod.number().nullish()
   description: zod.string().nullish(),
   genres: zod.array(zod.string()),
   notes: zod.string().nullish(),
@@ -273,6 +284,7 @@ export const UpdateMediaBody = zod.object({
   ratingWorldBuilding: z.number().optional().nullable(),
   ratingUniqueness: z.number().optional().nullable(),
   ratingEnjoyment: z.number().optional().nullable(),
+  ratingSourceAccuracy: z.number().optional().nullable(),
   description: z.string().optional().nullable(),
 });
 
@@ -301,6 +313,7 @@ export const UpdateMediaResponse = zod.object({
   ratingWorldBuilding: zod.number().nullish(),
   ratingUniqueness: zod.number().nullish(),
   ratingEnjoyment: zod.number().nullish(),
+  ratingSourceAccuracy: zod.number().nullish()
   description: zod.string().nullish(),
   genres: zod.array(zod.string()),
   notes: zod.string().nullish(),
@@ -357,6 +370,7 @@ export const UpdateMediaTierResponse = zod.object({
   ratingWorldBuilding: zod.number().nullish(),
   ratingUniqueness: zod.number().nullish(),
   ratingEnjoyment: zod.number().nullish(),
+  ratingSourceAccuracy: zod.number().nullish()
   description: zod.string().nullish(),
   genres: zod.array(zod.string()),
   notes: zod.string().nullish(),

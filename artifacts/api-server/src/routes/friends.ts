@@ -1,12 +1,19 @@
 // artifacts/api-server/src/routes/friends.ts
 import { Router, type IRouter } from "express";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, gte } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { usersTable, friendshipsTable, recommendationsTable, mediaTable, librarySharingTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+const sentToday = await db.select().from(recommendationsTable)
+  .where(and(eq(recommendationsTable.fromUserId, userId), gte(recommendationsTable.createdAt, startOfDay)));
+if (sentToday.length >= 5) {
+  return res.status(429).json({ error: "Daily recommendation limit reached (5/day). Try again tomorrow." });
+}
 
 function requireAuth(req: any, res: any): string | null {
   const { userId } = getAuth(req);

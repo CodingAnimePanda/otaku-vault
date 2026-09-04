@@ -41,6 +41,24 @@ const GENRE_COLORS = [
   "bg-teal-500/15 text-teal-400", "bg-fuchsia-500/15 text-fuchsia-400",
   "bg-lime-500/15 text-lime-400", "bg-cyan-500/15 text-cyan-400",
 ];
+
+function getRatingCategories(category: string) {
+  const base = [
+    { key: "story", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
+    { key: "character", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
+    { key: "worldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
+    { key: "uniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
+    { key: "enjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
+  ];
+  if (category === "anime") {
+    return [base[0], { key: "art", label: "Animation", desc: "Rate animation fluidity, frame quality, and overall visual polish." }, ...base.slice(1)];
+  }
+  if (category === "webnovel") {
+    return [base[0], { key: "art", label: "Formatting & Translation", desc: "How clean is the formatting and how good is the translation quality?" }, ...base.slice(1)];
+  }
+  return [base[0], { key: "art", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." }, ...base.slice(1)];
+}
+
 function genreColor(genre: string) {
   let hash = 0;
   for (let i = 0; i < genre.length; i++) hash = genre.charCodeAt(i) + ((hash << 5) - hash);
@@ -190,6 +208,8 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
 
   const [dropReason, setDropReason] = useState("");
   const [ratings, setRatings] = useState(() => loadRatings(media?.id ?? 0));
+  const [sourceAccuracy, setSourceAccuracy] = useState(0);
+  const [hasSource, setHasSource] = useState(false);
   const [genres, setGenres] = useState<string[]>([]);
   const [fetching, setFetching] = useState(false);
   const [candidates, setCandidates] = useState<MangaCandidate[] | null>(null);
@@ -221,6 +241,8 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
           enjoyment: (media as any).ratingEnjoyment ?? 0,
         });
       }
+      setSourceAccuracy((media as any).ratingSourceAccuracy ?? 0);
+      setHasSource(((media as any).ratingSourceAccuracy ?? 0) > 0);
       setGenres((media as any).genres ?? []);
       setCandidates(null);
     }
@@ -285,7 +307,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         ratingCharacter: ratings.character || null,
         ratingWorldBuilding: ratings.worldBuilding || null,
         ratingUniqueness: ratings.uniqueness || null,
-        ratingEnjoyment: ratings.enjoyment || null,
+        ratingSourceAccuracy: (values.category === "anime" && hasSource) ? sourceAccuracy || null : null,
       } as any,
     }, {
       onSuccess: () => {
@@ -420,6 +442,25 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
 
     {/* Ratings */}
     <div className="p-4 rounded-xl border border-border bg-card/50 space-y-4 shadow-sm">
+    {watchedCategory === "anime" && (
+      <div className="pt-2 border-t border-border space-y-1.5">
+        <label className="flex items-center gap-2 text-xs font-medium">
+          <input type="checkbox" checked={hasSource} onChange={(e) => setHasSource(e.target.checked)} className="accent-primary" />
+          This anime is based on a manga/manhwa I've read
+        </label>
+        {hasSource && (
+          <div className="space-y-1">
+            <div className="flex justify-between items-start text-xs gap-2">
+              <div><p className="font-medium">Source Accuracy</p><p className="text-[10px] text-muted-foreground leading-snug mt-0.5">How faithfully does it adapt the original material?</p></div>
+              <span className="font-medium flex-shrink-0 mt-0.5">{sourceAccuracy > 0 ? `${sourceAccuracy}/10` : "Unrated"}</span>
+            </div>
+            <input type="range" min="0" max="10" step="1" value={sourceAccuracy}
+              onChange={(e) => setSourceAccuracy(parseInt(e.target.value))}
+              className="w-full accent-primary h-1 bg-muted rounded-lg appearance-none cursor-pointer" />
+          </div>
+        )}
+      </div>
+    )}
       <div className="flex items-center justify-between pb-2 border-b border-border">
         <div className="flex items-center gap-2">
           <Star className="w-4 h-4 text-yellow-500" />
@@ -427,14 +468,7 @@ export function EditMediaDialog({ open, onClose, media, favorites, onToggleFavor
         </div>
         <div className="px-2.5 py-1 rounded-md bg-primary/10 text-primary font-bold text-sm">{calculateAverage()} / 10</div>
       </div>
-      {[
-  { key: "story", label: "Story & Pacing", desc: "Does the plot hook you early? Evaluate pacing, transitions, and whether arcs overstay their welcome." },
-  { key: "art", label: "Art Style & Coloring", desc: "Rate linework, background detail, and how well the art captures action and emotion." },
-  { key: "character", label: "Character Development", desc: "Are characters multi-dimensional? Judge cast chemistry, motivations, and villain depth." },
-  { key: "worldBuilding", label: "World-Building", desc: "How fleshed out is the universe? Rate the clarity of lore, systems, and internal rules." },
-  { key: "uniqueness", label: "Uniqueness & Execution", desc: "How does it stand out? Even common tropes can shine — judge how well they're executed." },
-  { key: "enjoyment", label: "Enjoyment Factor", desc: "The subjective fun metric. How eager were you to hit the next chapter button?" },
-].map((cat) => (
+      {getRatingCategories(watchedCategory).map((cat) => (
   <div key={cat.key} className="space-y-1">
     <div className="flex justify-between items-start text-xs gap-2">
       <div>

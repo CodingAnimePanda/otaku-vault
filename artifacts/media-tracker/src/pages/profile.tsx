@@ -34,12 +34,23 @@ export default function ProfilePage() {
   const avgRatingVal = avgRating.length > 0 ? (avgRating.reduce((a, b) => a + (b.rating ?? 0), 0) / avgRating.length).toFixed(1) : "—";
 
   // Group by category for full library
-  const byCategory = mediaArray.reduce((acc, item) => {
-    const cat = item.category || "other";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(item);
-    return acc;
-  }, {} as Record<string, typeof mediaArray>);
+  const CATEGORY_ORDER = ["manhwa", "webtoon", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"];
+const TIER_ORDER: Record<string, number> = { S: 0, A: 1, B: 2, C: 3, D: 4, F: 5 };
+
+const byCategory = mediaArray.reduce((acc, item) => {
+  const cat = item.category || "other";
+  if (!acc[cat]) acc[cat] = [];
+  acc[cat].push(item);
+  return acc;
+}, {} as Record<string, typeof mediaArray>);
+
+Object.values(byCategory).forEach((items) => {
+  items.sort((a, b) => (TIER_ORDER[a.tier ?? ""] ?? 6) - (TIER_ORDER[b.tier ?? ""] ?? 6));
+});
+
+const sortedCategoryEntries = Object.entries(byCategory).sort(
+  ([a], [b]) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b)
+);
 
   const categoryLabel = (cat: string) =>
     cat === "normie_tv" ? "TV Shows" : cat === "normie_movie" ? "Movies" : cat === "normie_book" ? "Books" : cat;
@@ -118,7 +129,7 @@ export default function ProfilePage() {
       {/* Full Library by Category */}
       <div className="space-y-6 pt-4 border-t border-border">
         <h2 className="text-xl font-display font-bold flex items-center gap-2"><LayoutGrid className="w-5 h-5 text-primary" /> Full Library</h2>
-        {Object.entries(byCategory).map(([cat, items]) => (
+        {sortedCategoryEntries.map(([cat, items]) => (
           <div key={cat} className="space-y-3">
             <h3 className="font-display text-lg font-bold capitalize flex items-center gap-2 border-b border-border pb-2">
               {categoryLabel(cat)}
