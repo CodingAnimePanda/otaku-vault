@@ -17,6 +17,8 @@ const CATEGORY_LABELS: Record<Category, string> = {
   webtoon: "Webtoons", manhwa: "Manhwa", manga: "Manga", anime: "Anime", webnovel: "Webnovels",
 };
 
+const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const;
+
 type Category = (typeof CATEGORIES)[number];
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";

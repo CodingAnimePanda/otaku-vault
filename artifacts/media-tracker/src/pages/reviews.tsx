@@ -7,11 +7,14 @@ import { Button } from "@/components/ui/button";
 import { EditMediaDialog } from "../components/edit-media-dialog";
 
 export default function ReviewsPage() {
+
+  
   const [editingMedia, setEditingMedia] = useState<any>(null);
   const { data: media } = useListMedia({ listType: "library" });
-  
-  const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const;
+    
   const allMedia = media || [];
+
+  const categories = ["manhwa", "webtoon", "manhua", "manga", "anime", "webnovel"];
 
   return (
     <div className="space-y-6">

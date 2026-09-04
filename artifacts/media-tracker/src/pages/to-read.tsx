@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn, proxyImage } from "@/lib/utils";
 import { EditMediaDialog } from "@/components/edit-media-dialog";
 
+const READ_CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const;
+
 const CATEGORY_DOT: Record<string, string> = {
   webtoon: "bg-blue-400",
   manhwa: "bg-purple-400",
