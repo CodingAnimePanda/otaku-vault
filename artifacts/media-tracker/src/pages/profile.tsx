@@ -11,9 +11,6 @@ interface UserProfile { id: number; clerkId: string; username: string; displayNa
 const CATEGORY_ORDER = ["manhwa", "webtoon", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"];
 const TIER_ORDER: Record<string, number> = { S: 0, A: 1, B: 2, C: 3, D: 4, F: 5 };
 
-const [pickerOpen, setPickerOpen] = useState(false);
-const [pickerSlot, setPickerSlot] = useState<number | null>(null);
-
 const setTopFavorite = async (mediaId: number, rank: number | null) => {
   const token = await getToken();
   const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
@@ -129,6 +126,19 @@ export default function ProfilePage() {
   const [ovProfile, setOvProfile] = useState<UserProfile | null>(null);
   const [activeCat, setActiveCat] = useState<string>("all");
   const [detailItem, setDetailItem] = useState<any | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSlot, setPickerSlot] = useState<number | null>(null);
+
+  const setTopFavorite = async (mediaId: number, rank: number | null) => {
+    const token = await getToken();
+    const baseUrl = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
+    await fetch(`${baseUrl}/api/media/${mediaId}/top-favorite`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ rank }),
+    });
+    window.location.reload();
+  };
 
   const [characters, setCharacters] = useState<any[]>([]);
   const [charDialogOpen, setCharDialogOpen] = useState(false);
