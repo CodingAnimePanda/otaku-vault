@@ -6,7 +6,7 @@ import {
   Library, ListPlus, LayoutList, Star, AlertTriangle,
   Menu, BookOpen, Heart, Lock, X, Plus, Trash2, Globe,
   Settings, Tv, Clapperboard, Sparkles, Quote, LogOut,
-  Palette, Camera, Upload, Users, MessageSquare, BarChart2, ScrollText, UserCircle
+  Palette, Camera, Upload, Users, MessageSquare, BarChart2, ScrollText, UserCircle, Trophy
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -352,6 +352,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/moments", label: "Fav Moments", icon: Sparkles },
     { href: "/quotes", label: "Quotes", icon: Quote },
     { href: "/stats", label: "Stats", icon: BarChart2 },
+    { href: "/achievements", label: "Achievements", icon: Trophy },
   ];
 
   const isActive = (href: string) =>

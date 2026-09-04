@@ -19,6 +19,7 @@ import FriendsPage from "@/pages/friends";
 import ReviewsPage from "@/pages/reviews";
 import StatsPage from "@/pages/stats";
 import ProfilePage from "@/pages/profile";
+import AchievementsPage from "@/pages/achievements";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ function ProtectedRouter() {
         <Route path="/normie" component={NormiePage} />
         <Route path="/normie/tierlist/:type" component={NormiePage} />
         <Route path="/normie/recommended" component={NormiePage} />
+        <Route path="/achievements" component={AchievementsPage} />
         <Route component={NotFound} />
       </Switch>
     );

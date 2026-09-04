@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const CATEGORY_LABELS: Record<Category, string> = {
-  webtoon: "Webtoons", manhwa: "Manhwa", manga: "Manga", anime: "Anime", webnovel: "Webnovels",
+  webtoon: "Webtoons", manhwa: "Manhwa", manhua: "Manhua", manga: "Manga", anime: "Anime", webnovel: "Webnovels",
 };
 
 const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const;

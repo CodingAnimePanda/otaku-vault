@@ -528,6 +528,17 @@ export default function Dashboard() {
   const [editItem, setEditItem] = useState<any | null>(null);
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
+  const allGenres = useMemo(() => {
+    const s = new Set<string>();
+    mediaArray.forEach((m) => (m.genres ?? []).forEach((g: string) => s.add(g)));
+    return [...s].sort();
+  }, [mediaArray]);
+  const toggleGenre = (g: string) => setSelectedGenres((prev) => {
+    const next = new Set(prev);
+    next.has(g) ? next.delete(g) : next.add(g);
+    return next;
+  });
   const [statusTab, setStatusTab] = useState<StatusTab>("reading");
   const [cardLayout, setCardLayout] = useState<CardLayout>(loadLayout);
   const [sortOption, setSortOption] = useState<SortOption>(loadSort);
@@ -591,7 +602,7 @@ export default function Dashboard() {
 
   const filteredMedia = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    const base = q
+    let base = q
       ? mediaArray.filter((m) =>
           m.title.toLowerCase().includes(q) ||
           m.category.toLowerCase().includes(q) ||
@@ -599,8 +610,11 @@ export default function Dashboard() {
           (m.genres ?? []).some((g: string) => g.toLowerCase().includes(q))
         )
       : mediaArray;
+    if (selectedGenres.size > 0) {
+      base = base.filter((m) => (m.genres ?? []).some((g: string) => selectedGenres.has(g)));
+    }
     return applySort(base);
-  }, [mediaArray, searchQuery, applySort]);
+  }, [mediaArray, searchQuery, selectedGenres, applySort]);
 
   const favoriteItems = useMemo(() => applySort(
     mediaArray.filter((m) => favorites.has(m.id) || m.tier === "S")
@@ -974,6 +988,22 @@ export default function Dashboard() {
               <Input placeholder="Search titles, categories, genres, status..." value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
             </div>
+            {allGenres.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {allGenres.map((g) => (
+                  <button key={g} onClick={() => toggleGenre(g)}
+                    className={cn("text-xs px-2.5 py-1 rounded-full font-medium transition-colors",
+                      selectedGenres.has(g) ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}>
+                    {g}
+                  </button>
+                ))}
+                {selectedGenres.size > 0 && (
+                  <button onClick={() => setSelectedGenres(new Set())} className="text-xs px-2.5 py-1 rounded-full text-destructive hover:underline">
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
             {searchQuery && (
               <p className="text-xs text-muted-foreground">
                 {filteredMedia.length} result{filteredMedia.length !== 1 ? "s" : ""} for "{searchQuery}"
