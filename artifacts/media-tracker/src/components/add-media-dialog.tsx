@@ -24,7 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Search, Check, Loader2, ExternalLink, X, Plus, Sparkles, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime"] as const;
+const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const;
 const LIST_TYPES = ["library", "to_read", "avoid", "bl"] as const;
 const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
 

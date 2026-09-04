@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 
 const STATUSES = ["reading", "watching", "completed", "paused", "dropped", "plan_to_read"] as const;
 const LIST_TYPES = ["library", "to_read", "avoid"] as const;
-const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime"] as const;
+const CATEGORIES = ["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const;
 
 function loadRatings(mediaId: number) {
   try { const s = localStorage.getItem(`ov_ratings_${mediaId}`); if (s) return JSON.parse(s); } catch {}

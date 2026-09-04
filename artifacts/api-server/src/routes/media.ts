@@ -28,7 +28,7 @@ function serializeMedia(row: typeof mediaTable.$inferSelect) {
   return {
     id: row.id,
     title: row.title,
-    category: row.category as "webtoon" | "manhwa" | "manhua" | "manga" | "anime",
+    category: row.category as "webtoon" | "manhwa" | "manhua" | "manga" | "anime" | "webnovel" | "normie_tv" | "normie_movie" | "normie_book",
     listType: row.listType as "library" | "to_read" | "avoid" | "bl",
     status: row.status as "reading" | "watching" | "completed" | "paused" | "dropped" | "plan_to_read" | null,
     coverUrl: row.coverUrl ?? null,

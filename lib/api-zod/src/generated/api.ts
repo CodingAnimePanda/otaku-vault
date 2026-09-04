@@ -19,7 +19,7 @@ export const HealthCheckResponse = zod.object({
  * @summary List all media entries
  */
 export const ListMediaQueryParams = zod.object({
-  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "normie_tv", "normie_movie", "normie_book"]).optional(),
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]).optional(),
   listType: zod.enum(["library", "to_read", "avoid", "bl"]).optional(),
   status: zod
     .enum([
@@ -36,7 +36,7 @@ export const ListMediaQueryParams = zod.object({
 export const ListMediaResponseItem = zod.object({
   id: zod.number(),
   title: zod.string(),
-  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "normie_tv", "normie_movie", "normie_book"]),
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]),
   listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
@@ -79,8 +79,8 @@ export const ListMediaResponse = zod.array(ListMediaResponseItem);
  */
 export const CreateMediaBody = zod.object({
   title: zod.string(),
-  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "normie_tv", "normie_movie", "normie_book"]),
-  listType: zod.enum(["library", "to_read", "avoid", "bl"]),
+  category: ,
+  listType: zod.enum(["library", "to_read", "avoid", "bl"]),zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"])
   status: zod
     .enum([
       "reading",
@@ -120,7 +120,7 @@ export const GetRecommendationsQueryParams = zod.object({
 
 export const GetRecommendationsResponseItem = zod.object({
   title: zod.string(),
-  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "normie_tv", "normie_movie", "normie_book"]),
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]),
   coverUrl: zod.string().nullish(),
   genres: zod.array(zod.string()),
   score: zod.number().nullish(),
@@ -137,7 +137,7 @@ export const GetRecommendationsResponse = zod.array(
 export const GetMediaUpdatesResponseItem = zod.object({
   id: zod.number(),
   title: zod.string(),
-  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "normie_tv", "normie_movie", "normie_book"]),
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]),
   listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
@@ -179,7 +179,7 @@ export const GetMediaUpdatesResponse = zod.array(GetMediaUpdatesResponseItem);
  */
 export const SearchCoverQueryParams = zod.object({
   title: zod.coerce.string(),
-  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "normie_tv", "normie_movie", "normie_book"]),
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]),
 });
 
 export const SearchCoverResponseItem = zod.object({
@@ -200,7 +200,7 @@ export const GetMediaParams = zod.object({
 export const GetMediaResponse = zod.object({
   id: zod.number(),
   title: zod.string(),
-  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "normie_tv", "normie_movie", "normie_book"]),
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]),
   listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
@@ -245,7 +245,7 @@ export const UpdateMediaParams = zod.object({
 
 export const UpdateMediaBody = zod.object({
   title: zod.string().optional(),
-  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "normie_tv", "normie_movie", "normie_book"]).optional(),
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]).optional(),
   status: zod
     .enum([
       "reading",
@@ -280,7 +280,7 @@ export const UpdateMediaBody = zod.object({
 export const UpdateMediaResponse = zod.object({
   id: zod.number(),
   title: zod.string(),
-  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "normie_tv", "normie_movie", "normie_book"]),
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]),
   listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([
@@ -336,7 +336,7 @@ export const UpdateMediaTierBody = zod.object({
 export const UpdateMediaTierResponse = zod.object({
   id: zod.number(),
   title: zod.string(),
-  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "normie_tv", "normie_movie", "normie_book"]),
+  category: zod.enum(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel", "normie_tv", "normie_movie", "normie_book"]),
   listType: zod.enum(["library", "to_read", "avoid", "bl"]),
   status: zod
     .enum([

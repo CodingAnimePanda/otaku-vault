@@ -34,14 +34,18 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   manhua: <BookOpen className="w-5 h-5" />,
   manga: <BookOpen className="w-5 h-5" />,
   anime: <Tv className="w-5 h-5" />,
+  webnovel: <BookOpen className="w-5 h-5" />,
 };
+
 const CATEGORY_COLORS: Record<string, string> = {
   webtoon: "text-blue-400 bg-blue-500/10",
   manhwa: "text-purple-400 bg-purple-500/10",
   manhua: "text-emerald-400 bg-emerald-500/10",
   manga: "text-orange-400 bg-orange-500/10",
   anime: "text-pink-400 bg-pink-500/10",
+  webnovel: "text-amber-400 bg-amber-500/10",
 };
+
 const GENRE_COLORS = [
   "bg-sky-500/15 text-sky-400",
   "bg-violet-500/15 text-violet-400",
@@ -787,7 +791,7 @@ export default function Dashboard() {
       {/* Stats grid */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {(["webtoon", "manhwa", "manhua", "manga", "anime"] as const).map((cat) => {
+          {(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const).map((cat) => { ... })}
             const total = stats?.totalByCategory?.[cat] ?? 0;
             const completed = stats?.completedByCategory?.[cat] ?? 0;
             return (
