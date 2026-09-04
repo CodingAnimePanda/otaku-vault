@@ -26,6 +26,7 @@ export const mediaTable = pgTable("media", {
   ratingUniqueness: real("rating_uniqueness"),
   ratingEnjoyment: real("rating_enjoyment"),
   ratingSourceAccuracy: real("rating_source_accuracy"),
+  topFavoriteRank: real("top_favorite_rank"), // 1, 2, or 3 — null if not a top favorite
   genres: text("genres").array().notNull().default([]),
   notes: text("notes"),
   hasUpdate: boolean("has_update").notNull().default(false),
@@ -174,6 +175,20 @@ export const momentsTable = pgTable("moments", {
   readingUrl: text("reading_url").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// --- Favorite Characters ---
+export const favoriteCharactersTable = pgTable("favorite_characters", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url"),
+  mediaTitle: text("media_title").notNull().default(""),
+  role: text("role").notNull().default(""), // e.g. Protagonist, Villain, Best Girl/Boy, Comic Relief
+  note: text("note").notNull().default(""),
+  sortOrder: real("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export type FavoriteCharacter = typeof favoriteCharactersTable.$inferSelect;
 
 export type Moment = typeof momentsTable.$inferSelect;
 export type LibrarySharing = typeof librarySharingTable.$inferSelect;

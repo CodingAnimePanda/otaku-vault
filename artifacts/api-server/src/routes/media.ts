@@ -52,6 +52,7 @@ function serializeMedia(row: typeof mediaTable.$inferSelect) {
     addedBy: row.addedBy ?? null,
     readingUrl: row.readingUrl ?? null,
     description: row.description ?? null,
+    topFavoriteRank: row.topFavoriteRank ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -410,6 +411,24 @@ router.get("/media/proxy/image", async (req, res) => {
   } catch {
     res.status(500).json({ error: "Image proxy failed" });
   }
+});
+
+// PUT /media/:id/top-favorite
+router.put("/media/:id/top-favorite", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const mediaId = parseInt(req.params.id);
+  const { rank } = req.body as { rank: number | null }; // 1, 2, 3, or null to unset
+
+  if (rank !== null) {
+    // clear any existing item holding that rank
+    await db.update(mediaTable).set({ topFavoriteRank: null })
+      .where(and(eq(mediaTable.userId, userId), eq(mediaTable.topFavoriteRank, rank)));
+  }
+  const [updated] = await db.update(mediaTable).set({ topFavoriteRank: rank })
+    .where(and(eq(mediaTable.id, mediaId), eq(mediaTable.userId, userId))).returning();
+  if (!updated) { res.status(404).json({ error: "Media not found" }); return; }
+  res.json(serializeMedia(updated));
 });
 
 export default router;
