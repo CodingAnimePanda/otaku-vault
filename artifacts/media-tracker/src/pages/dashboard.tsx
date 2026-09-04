@@ -790,8 +790,8 @@ export default function Dashboard() {
 
       {/* Stats grid */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const).map((cat) => { ... })}
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          {(["webtoon", "manhwa", "manhua", "manga", "anime", "webnovel"] as const).map((cat) => {
             const total = stats?.totalByCategory?.[cat] ?? 0;
             const completed = stats?.completedByCategory?.[cat] ?? 0;
             return (
