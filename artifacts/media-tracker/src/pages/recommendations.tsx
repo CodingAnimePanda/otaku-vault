@@ -19,10 +19,6 @@ const CATEGORY_LABELS: Record<Category, string> = {
 
 type Category = (typeof CATEGORIES)[number];
 
-const CATEGORY_LABELS: Record<Category, string> = {
-  webtoon: "Webtoons", manhwa: "Manhwa", manga: "Manga", anime: "Anime",
-};
-
 const API_BASE = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
 
 function proxyCover(url: string | null | undefined): string | null {
