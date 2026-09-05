@@ -284,16 +284,16 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto">
+            <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2"><Heart className="w-5 h-5 text-rose-400 fill-rose-400" /><h2 className="text-xl font-display font-bold">Favorite Characters</h2></div>
-          <Button size="sm" variant="outline" onClick={() => setCharDialogOpen(true)}>+ Add</Button>
+          <a href="/characters" className="text-xs font-medium text-primary hover:underline">See all →</a>
         </div>
         {characters.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No favorite characters yet.</p>
+          <p className="text-sm text-muted-foreground">No favorite characters yet. <a href="/characters" className="text-primary hover:underline">Add some →</a></p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {characters.map((c) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {characters.slice(0, 3).map((c) => (
               <div key={c.id} className="group relative rounded-xl border border-border bg-card/50 overflow-hidden">
                 <div className="aspect-square bg-muted">
                   {c.imageUrl ? <img src={c.imageUrl} alt={c.name} className="w-full h-full object-cover" />

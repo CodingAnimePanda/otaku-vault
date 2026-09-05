@@ -349,6 +349,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const extraNavItems = [
     { href: "/profile", label: "Profile", icon: UserCircle },
+    { href: "/characters", label: "Characters", icon: Heart },
     { href: "/moments", label: "Fav Moments", icon: Sparkles },
     { href: "/quotes", label: "Quotes", icon: Quote },
     { href: "/stats", label: "Stats", icon: BarChart2 },
