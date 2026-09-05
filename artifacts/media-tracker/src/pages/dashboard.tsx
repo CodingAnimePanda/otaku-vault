@@ -529,16 +529,6 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
-  const allGenres = useMemo(() => {
-    const s = new Set<string>();
-    mediaArray.forEach((m) => (m.genres ?? []).forEach((g: string) => s.add(g)));
-    return [...s].sort();
-  }, [mediaArray]);
-  const toggleGenre = (g: string) => setSelectedGenres((prev) => {
-    const next = new Set(prev);
-    next.has(g) ? next.delete(g) : next.add(g);
-    return next;
-  });
   const [statusTab, setStatusTab] = useState<StatusTab>("reading");
   const [cardLayout, setCardLayout] = useState<CardLayout>(loadLayout);
   const [sortOption, setSortOption] = useState<SortOption>(loadSort);
@@ -556,8 +546,18 @@ export default function Dashboard() {
   const { data: media, isLoading: mediaLoading } = useListMedia({ listType: "library" });
   const updateMedia = useUpdateMedia();
   const mediaArray = (Array.isArray(media) ? media : []).filter(
-    (m) => !["normie_tv", "normie_movie", "normie_book"].includes(m.category)
+  (m) => !["normie_tv", "normie_movie", "normie_book"].includes(m.category)
   );
+  const allGenres = useMemo(() => {
+    const s = new Set<string>();
+    mediaArray.forEach((m) => (m.genres ?? []).forEach((g: string) => s.add(g)));
+    return [...s].sort();
+  }, [mediaArray]);
+  const toggleGenre = (g: string) => setSelectedGenres((prev) => {
+    const next = new Set(prev);
+    next.has(g) ? next.delete(g) : next.add(g);
+    return next;
+  });
 
   // Sort function
   const applySort = useCallback((arr: any[]) => {
