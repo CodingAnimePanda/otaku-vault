@@ -1,28 +1,13 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@clerk/clerk-react";
-import { useGetMediaStats, useListMedia } from "@workspace/api-client-react";
-import { Trophy } from "lucide-react";
+import React from "react";
+import { Trophy, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const MILESTONES = [
-  { count: 1, label: "First Title!", emoji: "🌱" }, { count: 5, label: "Getting Started", emoji: "📖" },
-  { count: 10, label: "Bookworm", emoji: "🐛" }, { count: 25, label: "Dedicated Reader", emoji: "⭐" },
-  { count: 50, label: "Otaku Apprentice", emoji: "🎌" }, { count: 100, label: "Otaku Master", emoji: "🏆" },
-  { count: 200, label: "No Life (Respect)", emoji: "💀" },
-];
-const COMPLETION_MILESTONES = [
-  { count: 10, label: "Completionist", emoji: "✅" }, { count: 50, label: "Finish Line Chaser", emoji: "🏁" },
-];
-const RATING_MILESTONES = [
-  { count: 25, label: "Critic in Training", emoji: "📝" }, { count: 50, label: "Seasoned Reviewer", emoji: "🖋️" },
-  { count: 100, label: "Master Critic", emoji: "🎓" },
-];
-const CATEGORY_MILESTONE_COUNT = 10; // change this to adjust threshold everywhere
-const CATEGORIES = ["manhwa", "webtoon", "manhua", "manga", "anime", "webnovel"];
-const FRIEND_MILESTONES = [
-  { count: 1, label: "Made a Friend", emoji: "🤝" }, { count: 5, label: "Social Otaku", emoji: "👥" },
-  { count: 10, label: "Vault Community", emoji: "🎉" },
-];
+import { useAchievementData } from "@/hooks/use-achievement-data";
+import {
+  LIBRARY_MILESTONES, COMPLETION_MILESTONES, RATING_MILESTONES,
+  CATEGORY_MILESTONES, CATEGORIES, FRIEND_MILESTONES,
+  REC_SENT_MILESTONES, REC_RECEIVED_MILESTONES, SHARE_MILESTONES,
+  HIDDEN_ACHIEVEMENTS,
+} from "@/lib/achievements";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -42,27 +27,23 @@ function Badge({ emoji, label, earned, sub }: { emoji: string; label: string; ea
     </div>
   );
 }
+function HiddenBadge({ earned, emoji, label, desc }: { earned: boolean; emoji: string; label: string; desc: string }) {
+  return (
+    <div className={cn("p-3 rounded-xl border text-center transition-all",
+      earned ? "bg-primary/10 border-primary/30" : "bg-muted/30 border-border opacity-50")}>
+      <div className="text-2xl mb-1">{earned ? emoji : <Lock className="w-5 h-5 mx-auto text-muted-foreground/50" />}</div>
+      <p className="text-xs font-medium leading-tight">{earned ? label : "???"}</p>
+      <p className="text-[10px] text-muted-foreground mt-0.5">{earned ? desc : "Hidden — keep exploring"}</p>
+    </div>
+  );
+}
 
 export default function AchievementsPage() {
-  const { getToken } = useAuth();
-  const { data: stats } = useGetMediaStats();
-  const { data: media } = useListMedia({ listType: "library" });
-  const [friendCount, setFriendCount] = useState(0);
-
-  const apiFetch = useCallback(async (path: string) => {
-    const token = await getToken();
-    const base = import.meta.env.VITE_API_URL ?? "https://otakuvault-api.onrender.com";
-    const res = await fetch(`${base}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    return res.ok ? res.json() : null;
-  }, [getToken]);
-
-  useEffect(() => { apiFetch("/api/friends").then((d) => { if (Array.isArray(d)) setFriendCount(d.length); }); }, [apiFetch]);
-
-  const mediaArray = Array.isArray(media) ? media : [];
-  const total = Object.values(stats?.totalByCategory ?? {}).reduce((a, b) => a + b, 0);
-  const completed = Object.values(stats?.completedByCategory ?? {}).reduce((a, b) => a + b, 0);
-  const ratedCount = mediaArray.filter((m) => m.rating && m.rating > 0).length;
-  const completedByCat = (cat: string) => mediaArray.filter((m) => m.category === cat && m.status === "completed").length;
+  const d = useAchievementData();
+  const total = d.media.length;
+  const completed = d.media.filter((m) => m.status === "completed").length;
+  const rated = d.media.filter((m) => m.rating && m.rating > 0).length;
+  const completedByCat = (cat: string) => d.media.filter((m) => m.category === cat && m.status === "completed").length;
 
   return (
     <div className="max-w-5xl mx-auto space-y-10 pb-12">
@@ -72,7 +53,7 @@ export default function AchievementsPage() {
       </div>
 
       <Section title="Library Milestones">
-        {MILESTONES.map((m) => <Badge key={m.label} {...m} earned={total >= m.count} sub={`${Math.min(total, m.count)}/${m.count} titles`} />)}
+        {LIBRARY_MILESTONES.map((m) => <Badge key={m.label} {...m} earned={total >= m.count} sub={`${Math.min(total, m.count)}/${m.count} titles`} />)}
       </Section>
 
       <Section title="Completion Milestones">
@@ -80,19 +61,27 @@ export default function AchievementsPage() {
       </Section>
 
       <Section title="Rating Habits">
-        {RATING_MILESTONES.map((m) => <Badge key={m.label} {...m} earned={ratedCount >= m.count} sub={`${Math.min(ratedCount, m.count)}/${m.count} rated`} />)}
+        {RATING_MILESTONES.map((m) => <Badge key={m.label} {...m} earned={rated >= m.count} sub={`${Math.min(rated, m.count)}/${m.count} rated`} />)}
       </Section>
 
-      <Section title="Category Completionist">
-        {CATEGORIES.map((cat) => {
-          const c = completedByCat(cat);
-          return <Badge key={cat} emoji="🏅" label={`${cat.charAt(0).toUpperCase() + cat.slice(1)} Finisher`}
-            earned={c >= CATEGORY_MILESTONE_COUNT} sub={`${Math.min(c, CATEGORY_MILESTONE_COUNT)}/${CATEGORY_MILESTONE_COUNT} completed`} />;
-        })}
-      </Section>
+      {CATEGORIES.map((cat) => (
+        <Section key={cat} title={`${cat.charAt(0).toUpperCase() + cat.slice(1)} Completionist`}>
+          {CATEGORY_MILESTONES.map((count) => {
+            const c = completedByCat(cat);
+            return <Badge key={count} emoji="🏅" label={`${count}`} earned={c >= count} sub={`${Math.min(c, count)}/${count} completed`} />;
+          })}
+        </Section>
+      ))}
 
       <Section title="Social">
-        {FRIEND_MILESTONES.map((m) => <Badge key={m.label} {...m} earned={friendCount >= m.count} sub={`${Math.min(friendCount, m.count)}/${m.count} friends`} />)}
+        {FRIEND_MILESTONES.map((m) => <Badge key={m.label} {...m} earned={d.friendCount >= m.count} sub={`${Math.min(d.friendCount, m.count)}/${m.count} friends`} />)}
+        {REC_SENT_MILESTONES.map((m) => <Badge key={m.label} {...m} earned={d.recSentCount >= m.count} sub={`${Math.min(d.recSentCount, m.count)}/${m.count} sent`} />)}
+        {REC_RECEIVED_MILESTONES.map((m) => <Badge key={m.label} {...m} earned={d.recReceivedCount >= m.count} sub={`${Math.min(d.recReceivedCount, m.count)}/${m.count} received`} />)}
+        {SHARE_MILESTONES.map((m) => <Badge key={m.label} {...m} earned={d.shareCount >= m.count} sub={`${Math.min(d.shareCount, m.count)}/${m.count} shared`} />)}
+      </Section>
+
+      <Section title="Hidden Achievements">
+        {HIDDEN_ACHIEVEMENTS.map((h) => <HiddenBadge key={h.id} earned={h.check(d)} emoji={h.emoji} label={h.label} desc={h.desc} />)}
       </Section>
     </div>
   );

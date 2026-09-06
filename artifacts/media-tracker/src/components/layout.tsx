@@ -16,6 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { useClerk, useUser } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAchievementUnlocks } from "@/hooks/use-achievement-unlocks";
+import { AchievementToast } from "@/components/achievement-toast";
 
 // ── Reading Sites ─────────────────────────────────────────────────────────────
 export interface ReadingSite { label: string; url: string; emoji: string; }
@@ -296,6 +298,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { getToken } = useAuth();
   const userId = user?.id ?? "guest";
   const [bg, setBg] = useState<BgSettings>(DEFAULT_BG);
+  const { current: unlockedAchievement, dismiss: dismissAchievement } = useAchievementUnlocks();
 
   useEffect(() => { if (user?.id) setBg(loadBg(user.id)); }, [user?.id]);
 
@@ -477,6 +480,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <SitesDialog open={sitesOpen} onClose={() => setSitesOpen(false)} />
       <BgDialog open={bgOpen} onClose={() => setBgOpen(false)} userId={userId} bg={bg} onChange={setBg} />
+        {unlockedAchievement && <AchievementToast achievement={unlockedAchievement} onDismiss={dismissAchievement} />}
     </div>
   );
 }
