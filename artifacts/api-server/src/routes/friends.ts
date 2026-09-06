@@ -187,7 +187,7 @@ router.patch("/friends/:friendClerkId/share", async (req, res): Promise<void> =>
   const { enabled } = req.body;
 
   const [existing] = await db.select().from(librarySharingTable).where(
-    and(eq(librarySharingTable.userId, userId), eq(librarySharingTable.friendUserId, friendClerkId))
+    and(eq(librarySharingTable.ownerId, userId), eq(librarySharingTable.friendId, friendClerkId))
   );
 
   if (existing) {
@@ -198,7 +198,7 @@ router.patch("/friends/:friendClerkId/share", async (req, res): Promise<void> =>
     res.json(updated);
   } else {
     const [created] = await db.insert(librarySharingTable)
-      .values({ userId, friendUserId: friendClerkId, enabled: !!enabled })
+      .values({ ownerId: userId, friendId: friendClerkId, enabled: !!enabled })
       .returning();
     res.status(201).json(created);
   }
@@ -209,8 +209,8 @@ router.get("/friends/:friendClerkId/share-status", async (req, res): Promise<voi
   if (!userId) return;
   const { friendClerkId } = req.params;
 
-  const [row] = await db.select().from(librarySharingTable).where(
-    and(eq(librarySharingTable.userId, userId), eq(librarySharingTable.friendUserId, friendClerkId))
+    const [row] = await db.select().from(librarySharingTable).where(
+    and(eq(librarySharingTable.ownerId, userId), eq(librarySharingTable.friendId, friendClerkId))
   );
 
   res.json({ enabled: row?.enabled ?? false });
@@ -233,8 +233,8 @@ router.get("/friends/:friendClerkId/library", async (req, res): Promise<void> =>
   );
   if (!friendship) { res.status(403).json({ error: "Not friends with this user" }); return; }
 
-  const [share] = await db.select().from(librarySharingTable).where(
-    and(eq(librarySharingTable.userId, friendClerkId), eq(librarySharingTable.friendUserId, userId))
+    const [share] = await db.select().from(librarySharingTable).where(
+    and(eq(librarySharingTable.ownerId, friendClerkId), eq(librarySharingTable.friendId, userId))
   );
   if (!share || !share.enabled) {
     res.status(403).json({ error: "not_shared" }); return;
