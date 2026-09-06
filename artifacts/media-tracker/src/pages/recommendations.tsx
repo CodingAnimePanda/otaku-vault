@@ -192,46 +192,68 @@ export default function Recommendations() {
           <p className="text-muted-foreground">No recommendations available right now.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-max">
           {filtered.map((rec, idx) => {
             const cover = proxyCover(rec.coverUrl);
             return (
-              <div key={`${rec.title}-${idx}`}
-                className="group relative cursor-pointer"
-                onClick={() => setSelectedRec(rec)}>
-                <div className="aspect-[2/3] rounded-xl overflow-hidden bg-muted relative">
-                  {cover ? (
+                            cover ? (
+                <div key={`${rec.title}-${idx}`}
+                  className="group relative cursor-pointer"
+                  onClick={() => setSelectedRec(rec)}>
+                  <div className="aspect-[2/3] rounded-xl overflow-hidden bg-muted relative">
                     <img src={cover} alt={rec.title}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-secondary/50 text-xs text-muted-foreground px-3 text-center">
-                      {rec.title}
+                    {rec.score && (
+                      <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 text-yellow-400 rounded-md px-2 py-1 text-xs font-bold backdrop-blur-sm">
+                        <Star className="w-3 h-3 fill-current" />{rec.score.toFixed(1)}
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                      <span className="text-white text-xs font-medium bg-black/60 px-3 py-1.5 rounded-full">Click to expand</span>
                     </div>
-                  )}
-                  {rec.score && (
-                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 text-yellow-400 rounded-md px-2 py-1 text-xs font-bold backdrop-blur-sm">
-                      <Star className="w-3 h-3 fill-current" />{rec.score.toFixed(1)}
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    <h3 className="text-sm font-medium leading-tight line-clamp-2">{rec.title}</h3>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 capitalize">{rec.category}</Badge>
+                      {rec.source && <span className="text-[10px] text-muted-foreground">{rec.source}</span>}
                     </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                    <span className="text-white text-xs font-medium bg-black/60 px-3 py-1.5 rounded-full">Click to expand</span>
+                    {rec.genres.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {rec.genres.slice(0, 2).map((g) => (
+                          <span key={g} className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{g}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="mt-2 space-y-1">
-                  <h3 className="text-sm font-medium leading-tight line-clamp-2">{rec.title}</h3>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+              ) : (
+                <div key={`${rec.title}-${idx}`}
+                  className="group relative cursor-pointer p-3 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors flex flex-col justify-between min-h-[110px]"
+                  onClick={() => setSelectedRec(rec)}>
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-sm font-semibold leading-tight line-clamp-2">{rec.title}</h3>
+                      {rec.score && (
+                        <span className="flex items-center gap-0.5 text-yellow-400 text-xs font-bold flex-shrink-0">
+                          <Star className="w-3 h-3 fill-current" />{rec.score.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                    {rec.genres.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {rec.genres.slice(0, 3).map((g) => (
+                          <span key={g} className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{g}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap mt-2">
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 capitalize">{rec.category}</Badge>
                     {rec.source && <span className="text-[10px] text-muted-foreground">{rec.source}</span>}
                   </div>
-                  {rec.genres.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {rec.genres.slice(0, 2).map((g) => (
-                        <span key={g} className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{g}</span>
-                      ))}
-                    </div>
-                  )}
                 </div>
-              </div>
+              )
             );
           })}
         </div>
