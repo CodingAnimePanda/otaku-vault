@@ -122,6 +122,19 @@ router.get("/media/stats", async (req, res): Promise<void> => {
   });
 });
 
+const CURATED_WEBNOVELS = [
+  { title: "Omniscient Reader's Viewpoint", coverUrl: null, genres: ["Fantasy", "Action", "Apocalypse"], synopsis: "A reader becomes the sole person who knows how his favorite web novel's apocalypse will unfold." },
+  { title: "Solo Leveling", coverUrl: null, genres: ["Action", "Fantasy"], synopsis: "The weakest hunter gains the power to level up infinitely." },
+  { title: "The Beginning After the End", coverUrl: null, genres: ["Fantasy", "Reincarnation"], synopsis: "A king is reincarnated into a world of magic, keeping memories of his past life." },
+  { title: "Lord of the Mysteries", coverUrl: null, genres: ["Mystery", "Steampunk", "Horror"], synopsis: "A man wakes in a body from another world and must navigate occult factions." },
+  { title: "Mother of Learning", coverUrl: null, genres: ["Fantasy", "Time Loop"], synopsis: "A mage trapped in a time loop tries to break the cycle and save his city." },
+  { title: "A Practical Guide to Evil", coverUrl: null, genres: ["Fantasy", "War"], synopsis: "An orphan girl claws her way into a role as a villain in a world of Good vs Evil." },
+  { title: "Reverend Insanity", coverUrl: null, genres: ["Cultivation", "Dark Fantasy"], synopsis: "A ruthless cultivator repeatedly reincarnates to complete his ultimate scheme." },
+  { title: "Warlock of the Magus World", coverUrl: null, genres: ["Sci-Fi", "Cultivation"], synopsis: "A scientist is reincarnated into a magical world and combines science with sorcery." },
+  { title: "The Wandering Inn", coverUrl: null, genres: ["Fantasy", "Slice of Life"], synopsis: "A woman transported to a fantasy world opens an inn amid political and magical chaos." },
+  { title: "Super Gene", coverUrl: null, genres: ["Sci-Fi", "Action"], synopsis: "A young man gains extraordinary abilities through genetic modification." },
+];
+
 // GET /media/recommendations
 router.get("/media/recommendations", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
@@ -135,11 +148,18 @@ router.get("/media/recommendations", async (req, res): Promise<void> => {
 
     const results: any[] = [];
 
-    const categoriesToFetch = category
+        const categoriesToFetch = category
       ? [category]
-      : ["manhwa", "manga", "webtoon", "anime"];
+      : ["manhwa", "manga", "webtoon", "anime", "webnovel"];
 
     for (const cat of categoriesToFetch) {
+      if (cat === "webnovel") {
+        for (const item of CURATED_WEBNOVELS) {
+          if (libraryTitles.has(item.title.toLowerCase())) continue;
+          results.push({ ...item, category: "webnovel", score: null, source: "Curated" });
+        }
+        continue;
+      }
       if (cat === "anime") {
         const resp = await fetch("https://api.jikan.moe/v4/top/anime?limit=20&filter=bypopularity");
         if (!resp.ok) continue;
