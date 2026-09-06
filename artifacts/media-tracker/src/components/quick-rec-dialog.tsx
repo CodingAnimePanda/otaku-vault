@@ -62,7 +62,8 @@ export function QuickRecDialog({ open, onClose, item }: { open: boolean; onClose
           ratingUniqueness: item.ratingUniqueness ?? null, ratingEnjoyment: item.ratingEnjoyment ?? null,
         }),
       });
-      toast({ title: "Rec sent! 🎉" }); onClose();
+          localStorage.setItem("ov_rec_sent_count", String(Number(localStorage.getItem("ov_rec_sent_count") ?? 0) + 1));
+        toast({ title: "Rec sent! 🎉" }); onClose();
     } catch (e: any) { toast({ title: "Failed", description: e.message, variant: "destructive" }); }
     finally { setLoading(false); }
   };

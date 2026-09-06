@@ -699,9 +699,12 @@ export default function FriendsPage() {
     } catch { toast({ title: "Failed to load friends data", variant: "destructive" }); }
   };
 
-  const handleToggleShare = async (clerkId: string) => {
+    const handleToggleShare = async (clerkId: string) => {
     const newVal = !shareMap[clerkId]; setShareMap((prev) => ({ ...prev, [clerkId]: newVal }));
-    try { await apiFetch(`/api/friends/${clerkId}/share`, { method: "PATCH", body: JSON.stringify({ enabled: newVal }) }); }
+    try {
+      await apiFetch(`/api/friends/${clerkId}/share`, { method: "PATCH", body: JSON.stringify({ enabled: newVal }) });
+      if (newVal) localStorage.setItem("ov_share_count", String(Number(localStorage.getItem("ov_share_count") ?? 0) + 1));
+    }
     catch { setShareMap((prev) => ({ ...prev, [clerkId]: !newVal })); toast({ title: "Failed to update sharing", variant: "destructive" }); }
   };
 
