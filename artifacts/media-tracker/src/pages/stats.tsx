@@ -53,7 +53,9 @@ export default function StatsPage() {
     : "—";
 
   const categoryData = useMemo(() =>
-    Object.entries(stats?.totalByCategory ?? {}).map(([cat, count]) => ({ name: cat, value: count, fill: CATEGORY_COLORS[cat] ?? "#94a3b8" })),
+    Object.entries(stats?.totalByCategory ?? {})
+      .filter(([cat]) => !["normie_tv", "normie_movie", "normie_book"].includes(cat))
+      .map(([cat, count]) => ({ name: categoryLabel(cat), value: count, fill: CATEGORY_COLORS[cat] ?? "#94a3b8" })),
     [stats]);
 
   const statusData = useMemo(() => {
