@@ -5,6 +5,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveCo
 import { BookOpen, Download, Trophy, Star, TrendingUp, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { categoryLabel } from "@/lib/utils";
 
 const CATEGORY_COLORS: Record<string, string> = {
   webtoon: "#60a5fa",
@@ -40,7 +41,9 @@ function StatCard({ label, value, icon, color }: { label: string; value: string 
 export default function StatsPage() {
   const { data: media } = useListMedia({ listType: "library" });
   const { data: stats } = useGetMediaStats();
-  const mediaArray = Array.isArray(media) ? media : [];
+  const mediaArray = (Array.isArray(media) ? media : []).filter(
+  (m) => !["normie_tv", "normie_movie", "normie_book"].includes(m.category)
+  );
 
   const totalItems = Object.values(stats?.totalByCategory ?? {}).reduce((a, b) => a + b, 0);
   const completedItems = Object.values(stats?.completedByCategory ?? {}).reduce((a, b) => a + b, 0);
