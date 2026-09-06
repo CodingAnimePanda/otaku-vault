@@ -429,18 +429,22 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<FriendLibraryItem | null>(null);
   const [recItem, setRecItem] = useState<FriendLibraryItem | null>(null);
+  const [characters, setCharacters] = useState<any[]>([]);
 
   useEffect(() => {
     apiFetch(`/api/friends/${friend.friendId}/library`)
       .then((data) => setGrouped(data.grouped))
       .catch((e) => { if (e.message?.includes("not_shared") || e.message?.includes("403")) setNotShared(true); })
       .finally(() => setLoading(false));
+    apiFetch(`/api/friends/${friend.friendId}/characters`)
+      .then((data) => setCharacters(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }, [friend.friendId]);
 
   const allItems = useMemo(() => Object.values(grouped || {}).flat(), [grouped]);
   const completedCount = allItems.filter(m => m.status === 'completed').length;
   const totalCount = allItems.length;
-  const topFavorites = allItems.filter(m => m.tier === "S" || m.rating === 10).slice(0, 3);
+  const topFavorites = [...allItems].filter((m: any) => m.topFavoriteRank).sort((a: any, b: any) => a.topFavoriteRank - b.topFavoriteRank);
   
   // Filter by search
   const filteredItems = useMemo(() => {
@@ -496,19 +500,43 @@ function FriendProfileView({ friend, onBack, onSendRec, apiFetch }: { friend: Fr
           </div>
 
           {/* Top 3 Favorites */}
-          {topFavorites.length > 0 && (
+                    {topFavorites.length > 0 && (
             <div className="max-w-3xl mx-auto">
               <div className="flex items-center gap-2 mb-4">
-                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" /><h2 className="text-xl font-display font-bold">All-Time Favorites</h2>
+                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" /><h2 className="text-xl font-display font-bold">Top 3 Favorites</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {topFavorites.map((item) => (
+                {topFavorites.map((item: any) => (
                   <div key={`fav-${item.id}`} onClick={() => setSelectedItem(item)} className="group relative aspect-[2/3] rounded-xl overflow-hidden border border-border shadow-md cursor-pointer">
                     {item.coverUrl || item.customCoverUrl ? <img src={proxyImage(item.customCoverUrl || item.coverUrl) ?? ""} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="w-full h-full bg-muted flex items-center justify-center"><BookOpen className="w-8 h-8 text-muted-foreground/30" /></div>}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4">
-                      <span className="text-yellow-400 font-black text-lg mb-1 drop-shadow-md">#1</span>
+                      <span className="text-yellow-400 font-black text-lg mb-1 drop-shadow-md">#{item.topFavoriteRank}</span>
                       <h3 className="text-white font-semibold leading-tight line-clamp-2 drop-shadow-md">{item.title}</h3>
                       <p className="text-white/70 text-xs capitalize mt-1">{item.category}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {characters.length > 0 && (
+            <div className="max-w-3xl mx-auto">
+              <div className="flex items-center gap-2 mb-4">
+                <Heart className="w-5 h-5 text-rose-400 fill-rose-400" /><h2 className="text-xl font-display font-bold">Favorite Characters</h2>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {characters.map((c) => (
+                  <div key={c.id} className="rounded-xl border border-border bg-card/50 overflow-hidden">
+                    <div className="aspect-square bg-muted">
+                      {c.imageUrl ? <img src={c.imageUrl} alt={c.name} className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center"><Heart className="w-6 h-6 text-muted-foreground/30" /></div>}
+                    </div>
+                    <div className="p-2.5 space-y-0.5">
+                      <p className="text-sm font-semibold leading-tight">{c.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{c.mediaTitle}</p>
+                      {c.role && <span className="inline-block text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary mt-1">{c.role}</span>}
+                      {c.note && <p className="text-[10px] text-muted-foreground italic mt-1 line-clamp-2">"{c.note}"</p>}
                     </div>
                   </div>
                 ))}

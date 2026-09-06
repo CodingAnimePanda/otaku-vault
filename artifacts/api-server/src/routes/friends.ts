@@ -3,8 +3,9 @@ import { Router, type IRouter } from "express";
 import { eq, and, or, gte } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { usersTable, friendshipsTable, recommendationsTable, mediaTable, librarySharingTable } from "@workspace/db";
+import { usersTable, friendshipsTable, recommendationsTable, mediaTable, librarySharingTable, favoriteCharactersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+
 
 const router: IRouter = Router();
 
@@ -236,6 +237,7 @@ router.get("/friends/:friendClerkId/library", async (req, res): Promise<void> =>
     const [share] = await db.select().from(librarySharingTable).where(
     and(eq(librarySharingTable.ownerId, friendClerkId), eq(librarySharingTable.friendId, userId))
   );
+
   if (!share || !share.enabled) {
     res.status(403).json({ error: "not_shared" }); return;
   }
@@ -263,6 +265,7 @@ router.get("/friends/:friendClerkId/library", async (req, res): Promise<void> =>
     description: row.description ?? null,
     notes: row.notes ?? null,
     readingUrl: row.readingUrl ?? null,
+    topFavoriteRank: row.topFavoriteRank ?? null,
   }));
 
   const grouped: Record<string, typeof formatted> = {
@@ -275,6 +278,31 @@ router.get("/friends/:friendClerkId/library", async (req, res): Promise<void> =>
   });
 
   res.json({ grouped, items: formatted });
+});
+
+router.get("/friends/:friendClerkId/characters", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const { friendClerkId } = req.params;
+
+  const [friendship] = await db.select().from(friendshipsTable).where(
+    and(
+      eq(friendshipsTable.status, "accepted"),
+      or(
+        and(eq(friendshipsTable.senderId, userId), eq(friendshipsTable.receiverId, friendClerkId)),
+        and(eq(friendshipsTable.senderId, friendClerkId), eq(friendshipsTable.receiverId, userId))
+      )
+    )
+  );
+  if (!friendship) { res.status(403).json({ error: "Not friends with this user" }); return; }
+
+  const [share] = await db.select().from(librarySharingTable).where(
+    and(eq(librarySharingTable.ownerId, friendClerkId), eq(librarySharingTable.friendId, userId))
+  );
+  if (!share || !share.enabled) { res.status(403).json({ error: "not_shared" }); return; }
+
+  const rows = await db.select().from(favoriteCharactersTable).where(eq(favoriteCharactersTable.userId, friendClerkId));
+  res.json(rows);
 });
 
 // ─── Recommendations ──────────────────────────────────────────────────────────
